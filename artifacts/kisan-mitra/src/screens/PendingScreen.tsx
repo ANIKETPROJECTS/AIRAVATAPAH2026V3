@@ -62,7 +62,7 @@ export default function PendingScreen() {
           <Text style={styles.subtitle}>{t('pendingSubtitle')}</Text>
         </View>
 
-        {farmer?.farmerId && (
+        {!!farmer?.farmerId && (
           <View style={styles.idCard}>
             <Text style={styles.idLabel}>{t('farmerId')}</Text>
             <Text style={styles.idValue}>{farmer.farmerId}</Text>

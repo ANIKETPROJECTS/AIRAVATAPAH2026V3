@@ -105,7 +105,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await storage.saveFarmer(farmer);
       dispatch({ type: 'UPDATE_FARMER', payload: farmer });
     } catch {
-      dispatch({ type: 'UPDATE_FARMER', payload: null });
+      // Silently ignore errors — keep existing farmer state so the user
+      // isn't unexpectedly navigated away from the Pending screen.
     }
   }, [state.mobile]);
 

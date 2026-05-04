@@ -61,7 +61,7 @@ router.get("/farmers", async (_req, res, next) => {
   try {
     const db = getDb();
     const col = db.collection("farmers");
-    const farmers = await col.find({}, { projection: { _id: 0 } }).sort({ addedAt: 1 }).toArray();
+    const farmers = await col.find({}, { projection: { _id: 0 } }).sort({ addedAt: -1 }).toArray();
     res.json(farmers);
   } catch (err) {
     next(err);
