@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, SafeAreaView,
-  ScrollView, Alert,
+  ScrollView, Alert, Platform,
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { COLORS, FONT_SIZE, RADIUS, SHADOW, T } from '../constants';
@@ -51,9 +51,14 @@ export default function ProfileScreen() {
     : '?';
 
   async function handleLogout() {
+    if (Platform.OS === 'web') {
+      const msg = t('logoutConfirm') || 'Are you sure you want to logout?';
+      if (window.confirm(msg)) await logout();
+      return;
+    }
     Alert.alert(t('logout'), t('logoutConfirm'), [
       { text: t('cancel'), style: 'cancel' },
-      { text: t('logout'), style: 'destructive', onPress: logout },
+      { text: t('logout'), style: 'destructive', onPress: () => { logout(); } },
     ]);
   }
 
