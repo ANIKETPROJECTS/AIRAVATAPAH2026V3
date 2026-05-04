@@ -17,7 +17,7 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 ## Key Commands
 
 - `pnpm --filter @workspace/agri-admin run dev` — run admin web app locally (port 5000)
-- `pnpm --filter @workspace/farmer-app run web` — run Expo web farmer app (port 3000)
+- `pnpm --filter @workspace/kisan-mitra run web` — run Kisan Mitra Expo web app (port 8008)
 - `pnpm --filter @workspace/api-server run build && PORT=8000 node artifacts/api-server/dist/index.mjs` — run API server
 
 ## Artifacts
@@ -40,46 +40,60 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
   - `GET /api/document-types` — list 5 supported document types
   - `POST /api/extract` — upload file (multipart: `file`, `document_type`, `mode`, `profile_phone`); returns `request_id`
   - `GET /api/extract/:requestId` — poll OCR result; auto-saves to MongoDB when `profile_phone` provided
-  - `POST /api/auth/send-otp` — send 6-digit OTP to mobile
+  - `POST /api/auth/send-otp` — send 6-digit OTP to mobile (returns `otp` field in dev mode)
   - `POST /api/auth/verify-otp` — verify OTP, return JWT + farmer data
   - `GET /api/farmers` — list farmers (query: `status`, `search`, `district`, `page`, `limit`)
   - `GET /api/farmers/by-phone/:phone` — look up farmer by mobile number
   - `GET /api/farmers/:id` — get farmer by farmerId
   - `POST /api/farmers` — create new farmer
   - `PATCH /api/farmers/:id` — update farmer
-  - `GET /api/schemes` — list government schemes
+  - `GET /api/schemes` — list government schemes (query: `type`, `search`)
   - `GET /api/notifications` — list notifications (query: `mobile`, `farmerId`, `unreadOnly`)
-  - `POST /api/notifications/send` — create + push notification (triggers Expo Push Notification to registered device token)
+  - `POST /api/notifications/send` — create + push notification
   - `PATCH /api/notifications/:id/read` — mark notification as read
+  - `PATCH /api/notifications/read-all` — mark all notifications read (body: `mobile`)
 - **MongoDB**: Atlas cluster (`apnaapp` DB); collections: `farmers`, `users`, `schemes`, `notifications`, `push_tokens`, `otps`, `extract_requests`
 - **Secrets**: `DATALAB_API_KEY`, `MONGODB_URI`, `SESSION_SECRET`
 
-### Kisan Seva — Farmer Mobile App (`artifacts/farmer-app`)
+### Kisan Mitra — Farmer Mobile App (`artifacts/kisan-mitra`)
 
 - **Type**: Expo (React Native) app running in web mode for preview
-- **Port**: 3000 (console workflow "Farmer App")
-- **Tech**: Expo SDK 53, React Native 0.79, expo-router 4.x, React 19, DM Sans font (matches admin portal)
-- **Colors**: Derived from admin portal CSS — primary `#1B4030`, accent `#C79A20`, background `#F4F0E9`, sidebar `#092015`
-- **Auth**: Mobile OTP login via `/api/auth/send-otp` and `/api/auth/verify-otp`; JWT stored in expo-secure-store (or localStorage on web)
+- **Port**: 8008 (console workflow "Kisan Mitra")
+- **App name**: "Kisan Mitra" / "किसान मित्र" (Farmer Friend)
+- **Tech**: Expo SDK 53, React Native 0.79.2, React Navigation v6 (stack + bottom tabs), React 19, no expo-router
+- **Colors**: Saffron/orange primary (`#F97316`), white backgrounds, green for success states
+- **Languages**: English, Hindi (हिंदी), Marathi (मराठी) — switchable on welcome screen, saved in AsyncStorage
+- **Auth**: Mobile OTP login via `/api/auth/send-otp` + `/api/auth/verify-otp`; JWT + farmer data stored in AsyncStorage. Dev mode: OTP auto-displayed in yellow banner on OTP screen (API returns it in response).
+- **Navigation flow**:
+  - No token → Welcome → Login → OTP
+  - Token + no farmer / Rejected → DocumentUpload
+  - Token + farmer Pending → PendingScreen (auto-polls every 30s)
+  - Token + farmer Active → Main tab navigator (Home / Schemes / Notifications / Profile)
+- **Document upload**: 5 required documents (Aadhaar, Bank Passbook, Form 7, Form 12, Form 8A). Each card: pick file (expo-document-picker on web, expo-image-picker on native) → POST `/api/extract` with `profile_phone` → poll `/api/extract/:requestId` every 4s → marks done when `status === 'complete'`. Submit button enabled when all 5 done — fetches updated farmer record and navigates to Pending.
 - **Screens**:
-  - `(auth)/welcome` — App intro with features list, "Get Started" CTA
-  - `(auth)/otp` — Mobile number entry + 6-digit OTP verification
-  - `(tabs)/home` — Dynamic status dashboard (unregistered / pending / active / rejected states)
-  - `(tabs)/upload` — 5-document upload wizard with OCR polling (Aadhaar, Bank Passbook, Form 7, Form 12, Form 8A)
-  - `(tabs)/profile` — Farmer profile with all extracted fields (personal, land, bank)
-  - `(tabs)/schemes` — Government schemes list (locked until verified, shows PM-KISAN etc. after verification)
-- **API URL Strategy**: `getApiUrl()` in `lib/query-client.ts` dynamically derives port-8000 URL from current browser hostname at runtime (handles Replit `*.replit.dev` domain pattern by inserting `--8000` before first dot)
-- **Document upload**: Uses `expo-document-picker` (PDF/image); POST to `/api/extract` as multipart FormData; polls result every 4 seconds; persists upload state per-mobile in AsyncStorage
+  - `WelcomeScreen` — App logo, tagline, language picker, "Get Started" CTA
+  - `LoginScreen` — 10-digit mobile number, "Send OTP" button
+  - `OtpScreen` — 6-digit OTP input, countdown timer, resend, dev OTP banner
+  - `DocumentUploadScreen` — 5 document cards with upload/processing/done states, progress bar
+  - `PendingScreen` — Timeline (Submitted → Under Review → Decision), farmer ID, docs list, auto-refresh
+  - `HomeScreen` (tab) — Welcome banner, farm summary grid, quick actions, recent notifications
+  - `SchemesScreen` (tab) — Scheme list with Central/State filter, search, Know More modal
+  - `NotificationsScreen` (tab) — Notification list, mark-as-read, pull to refresh
+  - `ProfileScreen` (tab) — Personal / Land / Bank info sections, document list, logout
+- **API URL Strategy**: `getApiBase()` in `src/api.ts` — if `localhost` → `http://localhost:8000/api`; otherwise `${protocol}//${hostname}:8000/api` (works in Replit since all ports are accessible at the same hostname)
+- **Key files**: `src/api.ts`, `src/types.ts`, `src/constants.ts`, `src/context/AuthContext.tsx`, `src/navigation/AppNavigator.tsx`, `src/screens/`
 
 ## Port Routing
 - **Port 5000**: Vite dev server (agri-admin frontend) — webview workflow
-- **Port 3000**: Expo Metro web (farmer-app) — console workflow
 - **Port 8000**: API server (Express) — console workflow
-- **Port 8080→18593**: Redirect handled by `scripts/redirect-8080.mjs`
+- **Port 8008**: Expo Metro web (kisan-mitra) — console workflow
+- **Port 8080→5000 / Port 18593→5000**: Redirect handled by `scripts/redirect-8080.mjs`
 
 ## Architecture Notes
-- Both apps call the same API server on port 8000
-- Admin app uses Vite proxy for `/api` → `http://localhost:8000`
-- Farmer app derives API URL dynamically from browser hostname at runtime
-- MongoDB collections are shared between both apps
-- Expo Push Notifications: farmers register push tokens via `/api/auth/verify-otp` response; admin can trigger push via `/api/notifications/send`
+- Admin app (agri-admin) and Farmer app (kisan-mitra) both call the same API server on port 8000
+- Admin app uses Vite proxy (`/api` → `http://localhost:8000`) — same-origin requests
+- Kisan Mitra derives API URL dynamically from `window.location.hostname:8000` at runtime
+- MongoDB collections shared between all apps: `farmers`, `schemes`, `notifications`, `push_tokens`
+- Expo Push Notifications: farmers register push tokens; admin triggers push via `/api/notifications/send`
+- OTP is returned in API response in dev mode (no SMS gateway) — displayed as yellow banner in OtpScreen
+- Document types: `aadhar`, `bank_passbook`, `form7`, `form12`, `form8a`

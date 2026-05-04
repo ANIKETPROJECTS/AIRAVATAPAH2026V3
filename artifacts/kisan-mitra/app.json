@@ -1,0 +1,38 @@
+{
+  "expo": {
+    "name": "Kisan Mitra",
+    "slug": "kisan-mitra",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#F97316"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.agrimh.kisanmitra"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#F97316"
+      },
+      "package": "com.agrimh.kisanmitra"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Kisan Mitra to access your photos to upload documents.",
+          "cameraPermission": "Allow Kisan Mitra to use your camera to capture documents."
+        }
+      ]
+    ]
+  }
+}

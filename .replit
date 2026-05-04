@@ -32,6 +32,10 @@ args = "Port Redirect"
 task = "workflow.run"
 args = "Farmer App"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Kisan Mitra"
+
 [[workflows.workflow]]
 name = "Start application"
 author = "agent"
@@ -79,6 +83,18 @@ waitForPort = 8099
 [workflows.workflow.metadata]
 outputType = "console"
 
+[[workflows.workflow]]
+name = "Kisan Mitra"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "pnpm --filter @workspace/kisan-mitra run web"
+waitForPort = 8008
+
+[workflows.workflow.metadata]
+outputType = "console"
+
 [agent]
 stack = "BEST_EFFORT_FALLBACK"
 expertMode = true
@@ -98,6 +114,10 @@ externalPort = 80
 [[ports]]
 localPort = 8000
 externalPort = 8000
+
+[[ports]]
+localPort = 8008
+externalPort = 8008
 
 [[ports]]
 localPort = 8080
