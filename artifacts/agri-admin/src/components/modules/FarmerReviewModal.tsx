@@ -16,6 +16,7 @@ import {
   DOC_CARDS,
   DOC_CARD_SHORT,
   type FarmerProfile,
+  extractProfileFromStates,
 } from "./NewRegistration";
 import { apiUpdateFarmer, type FarmerRecord } from "@/data/farmerApi";
 
@@ -158,29 +159,6 @@ export default function FarmerReviewModal({
   const [saving, setSaving] = useState<string | null>(null);
   const [modalStep, setModalStep] = useState<"review" | "verify">("review");
 
-  const initialProfile: FarmerProfile = useMemo(() => {
-    if (farmer.farmerProfile) return farmer.farmerProfile as unknown as FarmerProfile;
-    return {
-      ...EMPTY_PROFILE,
-      name: farmer.name ?? "",
-      village: farmer.village ?? "",
-      taluka: farmer.taluka ?? "",
-      district: farmer.district ?? "",
-      aadhaar: farmer.aadhaar ?? "",
-      khateNumber: farmer.khateNumber ?? "",
-      surveyNumber: farmer.surveyNumber ?? "",
-      land: String(farmer.land ?? ""),
-      crop: farmer.crop ?? "",
-      bankAccount: farmer.bankAccount ?? "",
-    };
-  }, [farmer]);
-
-  const [profile, setProfile] = useState<FarmerProfile>(initialProfile);
-
-  const handleProfileChange = (field: keyof FarmerProfile, value: string) => {
-    setProfile(p => ({ ...p, [field]: value }));
-  };
-
   const docStates: DocStates = useMemo(() => {
     const states = Object.fromEntries(
       DOC_CARDS.map(c => [c.id, { ...DEFAULT_STATE }])
@@ -202,6 +180,34 @@ export default function FarmerReviewModal({
     }
     return states;
   }, [farmer]);
+
+  const initialProfile: FarmerProfile = useMemo(() => {
+    if (farmer.farmerProfile) return farmer.farmerProfile as unknown as FarmerProfile;
+    const base: FarmerProfile = {
+      ...EMPTY_PROFILE,
+      name: farmer.name ?? "",
+      village: farmer.village ?? "",
+      taluka: farmer.taluka ?? "",
+      district: farmer.district ?? "",
+      aadhaar: farmer.aadhaar ?? "",
+      khateNumber: farmer.khateNumber ?? "",
+      surveyNumber: farmer.surveyNumber ?? "",
+      land: String(farmer.land ?? ""),
+      crop: farmer.crop ?? "",
+      bankAccount: farmer.bankAccount ?? "",
+    };
+    const extracted = extractProfileFromStates(docStates);
+    (Object.keys(extracted) as (keyof FarmerProfile)[]).forEach((k) => {
+      if (!base[k] && extracted[k]) base[k] = extracted[k]!;
+    });
+    return base;
+  }, [farmer, docStates]);
+
+  const [profile, setProfile] = useState<FarmerProfile>(initialProfile);
+
+  const handleProfileChange = (field: keyof FarmerProfile, value: string) => {
+    setProfile(p => ({ ...p, [field]: value }));
+  };
 
   const completedCards = DOC_CARDS.filter(c => docStates[c.id].status === "complete");
   const [activeTab, setActiveTab] = useState<DocTypeId | "profile">(
