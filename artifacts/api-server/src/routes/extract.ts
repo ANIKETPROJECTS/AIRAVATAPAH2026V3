@@ -16,6 +16,7 @@ import {
   pickAadhaarPortrait,
   extractTablesFromMarkerJson,
   extractTextBlocksFromMarkerJson,
+  type Form7Table,
 } from "../lib/profiles";
 
 const router: IRouter = Router();
@@ -334,6 +335,9 @@ async function persistToProfile(
     images: Record<string, string> | null;
     json?: unknown;
   } | null,
+  rawTables: Form7Table[],
+  textBlocks: string[],
+  aadharPhoto: { base64: string; mimeType: string } | null,
 ): Promise<{ saved: boolean; section: string | null; error: string | null }> {
   if (!meta.profilePhone) {
     return { saved: false, section: null, error: null };
@@ -350,6 +354,16 @@ async function persistToProfile(
   if (Object.keys(mapped.data).length === 0) {
     return { saved: false, section: mapped.section, error: "Extraction returned no usable fields to save." };
   }
+
+  // Build the extractionData entry that matches what the Admin portal saves,
+  // so the FarmerReviewModal can display fully-populated fields for mobile uploads.
+  const extractionEntry = {
+    filename: `${docDef.id}`,
+    sections: presented ? presented.sections : [],
+    rawTables,
+    textBlocks,
+    aadharPhoto,
+  };
 
   try {
     const now = new Date().toISOString();
@@ -387,12 +401,14 @@ async function persistToProfile(
         addedAt: now,
         updatedAt: now,
         ocr: { [mapped.section]: mapped.data },
+        extractionData: { [docDef.id]: extractionEntry },
         docs: [docEntry],
         ...topLevel,
       });
     } else {
       const updateDoc: Record<string, unknown> = {
         [`ocr.${mapped.section}`]: mapped.data,
+        [`extractionData.${docDef.id}`]: extractionEntry,
         updatedAt: now,
       };
       for (const [k, v] of Object.entries(topLevel)) {
@@ -578,6 +594,9 @@ router.get("/extract/:requestId", async (req, res): Promise<void> => {
     marker
       ? { html: marker.html, images: marker.images, json: marker.json }
       : null,
+    rawTables,
+    textBlocks,
+    aadharPhoto,
   );
   if (persisted.error) {
     logger.warn({ err: persisted.error, phone: meta.profilePhone }, "Profile save failed");
