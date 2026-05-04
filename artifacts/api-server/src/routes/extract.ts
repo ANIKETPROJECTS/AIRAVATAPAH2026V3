@@ -585,6 +585,16 @@ router.get("/extract/:requestId", async (req, res): Promise<void> => {
     }
   }
 
+  // For Aadhaar documents, pick the portrait server-side and include it
+  // directly so the frontend never has to guess which image is the face.
+  const aadharPhoto =
+    docDef.id === "aadhar" && marker
+      ? pickAadhaarPortrait(marker)
+      : null;
+
+  const rawTables = marker?.json ? extractTablesFromMarkerJson(marker.json) : [];
+  const textBlocks = marker?.json ? extractTextBlocksFromMarkerJson(marker.json) : [];
+
   // Auto-save to MongoDB if a profile_phone was supplied at submission time.
   const persisted = await persistToProfile(
     meta,
@@ -601,16 +611,6 @@ router.get("/extract/:requestId", async (req, res): Promise<void> => {
   if (persisted.error) {
     logger.warn({ err: persisted.error, phone: meta.profilePhone }, "Profile save failed");
   }
-
-  // For Aadhaar documents, pick the portrait server-side and include it
-  // directly so the frontend never has to guess which image is the face.
-  const aadharPhoto =
-    docDef.id === "aadhar" && marker
-      ? pickAadhaarPortrait(marker)
-      : null;
-
-  const rawTables = marker?.json ? extractTablesFromMarkerJson(marker.json) : [];
-  const textBlocks = marker?.json ? extractTextBlocksFromMarkerJson(marker.json) : [];
 
   res.json({
     status: "complete",
