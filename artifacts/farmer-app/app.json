@@ -1,0 +1,42 @@
+{
+  "expo": {
+    "name": "Kisan Seva",
+    "slug": "kisan-seva",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "kisan-seva",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/images/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#092015"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.krishisuvidha.kisanseva"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/icon.png",
+        "backgroundColor": "#092015"
+      },
+      "package": "com.krishisuvidha.kisanseva"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single",
+      "favicon": "./assets/images/icon.png",
+      "baseUrl": "/kisan-seva"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-document-picker"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
