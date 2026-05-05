@@ -67,6 +67,11 @@ export default function FarmerRegistry({ onNavigate }: { onNavigate?: (key: stri
     return () => window.removeEventListener("farmer-registry-changed", handler);
   }, [loadFarmers]);
 
+  useEffect(() => {
+    const interval = setInterval(() => { loadFarmers(); }, 15000);
+    return () => clearInterval(interval);
+  }, [loadFarmers]);
+
   const districts = useMemo(() => [...new Set(farmers.map(f => f.district))].sort(), [farmers]);
 
   const filtered = useMemo(() => {

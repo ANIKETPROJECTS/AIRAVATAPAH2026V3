@@ -11,9 +11,36 @@ import { Scheme, InsuranceSubsidy } from '../types';
 type SchemeFilter = 'ALL' | 'CENTRAL' | 'STATE';
 type Tab = 'schemes' | 'insurance' | 'subsidies';
 
+function getEligibilityText(eligibility: Scheme['eligibility']): string {
+  if (!eligibility) return '';
+  if (typeof eligibility === 'string') return eligibility;
+  const parts: string[] = [];
+  if (eligibility.summary) parts.push(eligibility.summary);
+  if (Array.isArray(eligibility.familyCriteria)) parts.push(...eligibility.familyCriteria);
+  if (Array.isArray(eligibility.exclusions)) parts.push(...eligibility.exclusions);
+  if (Array.isArray(eligibility.parameters)) {
+    eligibility.parameters.forEach(p => parts.push(`${p.parameter}: ${p.rule}`));
+  }
+  return parts.join(' ');
+}
+
+function formatEligibilityForDisplay(eligibility: Scheme['eligibility']): string {
+  if (!eligibility) return '';
+  if (typeof eligibility === 'string') return eligibility;
+  const lines: string[] = [];
+  if (eligibility.summary) lines.push(eligibility.summary);
+  if (Array.isArray(eligibility.familyCriteria) && eligibility.familyCriteria.length > 0) {
+    lines.push('Criteria: ' + eligibility.familyCriteria.join(', '));
+  }
+  if (Array.isArray(eligibility.exclusions) && eligibility.exclusions.length > 0) {
+    lines.push('Exclusions: ' + eligibility.exclusions.slice(0, 3).join(', '));
+  }
+  return lines.join('\n');
+}
+
 function isEligibleScheme(scheme: Scheme, crop?: string, land?: string | number): boolean {
-  if (!scheme.eligibility) return true;
-  const e = scheme.eligibility.toLowerCase();
+  const e = getEligibilityText(scheme.eligibility).toLowerCase();
+  if (!e) return true;
   if (crop && crop !== '—' && e.includes(crop.toLowerCase())) return true;
   if (land) {
     const acres = parseFloat(String(land));
@@ -87,6 +114,8 @@ export default function SchemesScreen() {
     return true;
   });
 
+  const displayBenefit = (scheme: Scheme) => scheme.benefit ?? scheme.benefits ?? '';
+
   const filteredInsurance = insuranceItems.filter((s) =>
     !search || s.name.toLowerCase().includes(search.toLowerCase())
   );
@@ -101,12 +130,13 @@ export default function SchemesScreen() {
     { id: 'STATE', label: t('stateScheme') },
   ];
 
-  function handleKnowMore(name: string, description?: string, eligibility?: string, benefit?: string, deadline?: string) {
+  function handleKnowMore(name: string, description?: string, eligibility?: Scheme['eligibility'], benefit?: string, deadline?: string) {
+    const eligText = formatEligibilityForDisplay(eligibility);
     Alert.alert(
       name,
       [
         description ?? '',
-        eligibility ? `Eligibility: ${eligibility}` : '',
+        eligText ? `Eligibility: ${eligText}` : '',
         benefit ? `Benefit: ${benefit}` : '',
         deadline ? `Deadline: ${deadline}` : '',
       ].filter(Boolean).join('\n\n') || 'No additional information available.',
@@ -226,12 +256,12 @@ export default function SchemesScreen() {
                   )}
 
                   <View style={styles.metaRow}>
-                    {item.benefit && (
+                    {displayBenefit(item) ? (
                       <View style={styles.metaItem}>
                         <Text style={styles.metaIcon}>💰</Text>
-                        <Text style={styles.metaText} numberOfLines={1}>{item.benefit}</Text>
+                        <Text style={styles.metaText} numberOfLines={1}>{displayBenefit(item)}</Text>
                       </View>
-                    )}
+                    ) : null}
                     {item.deadline && (
                       <View style={styles.metaItem}>
                         <Text style={styles.metaIcon}>📅</Text>
@@ -243,7 +273,7 @@ export default function SchemesScreen() {
                   <View style={styles.cardActions}>
                     <TouchableOpacity
                       style={styles.knowMoreBtn}
-                      onPress={() => handleKnowMore(item.name, item.description, item.eligibility, item.benefit, item.deadline)}
+                      onPress={() => handleKnowMore(item.name, item.description, item.eligibility, displayBenefit(item), item.deadline)}
                     >
                       <Text style={styles.knowMoreText}>{t('knowMore')}</Text>
                     </TouchableOpacity>

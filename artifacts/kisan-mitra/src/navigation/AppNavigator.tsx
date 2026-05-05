@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -12,6 +12,7 @@ import OtpScreen from '../screens/OtpScreen';
 import DocumentUploadScreen from '../screens/DocumentUploadScreen';
 import PendingScreen from '../screens/PendingScreen';
 import RejectedScreen from '../screens/RejectedScreen';
+import VerifiedScreen from '../screens/VerifiedScreen';
 import HomeScreen from '../screens/HomeScreen';
 import SchemesScreen from '../screens/SchemesScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
@@ -24,6 +25,7 @@ export type RootStackParamList = {
   DocumentUpload: undefined;
   Pending: undefined;
   Rejected: undefined;
+  Verified: undefined;
   Main: undefined;
 };
 
@@ -101,6 +103,20 @@ function MainTabs() {
 
 export default function AppNavigator() {
   const { state } = useAuth();
+  const [showCongrats, setShowCongrats] = useState(false);
+  const prevStatusRef = useRef<string | undefined>(undefined);
+
+  const farmerStatus = state.farmer?.status;
+
+  useEffect(() => {
+    const prev = prevStatusRef.current;
+    const isNowVerified = farmerStatus === 'Active' || farmerStatus === 'Verified';
+    const wasPending = prev === 'Pending';
+    if (wasPending && isNowVerified) {
+      setShowCongrats(true);
+    }
+    prevStatusRef.current = farmerStatus;
+  }, [farmerStatus]);
 
   if (state.loading) {
     return (
@@ -110,7 +126,7 @@ export default function AppNavigator() {
     );
   }
 
-  const farmerStatus = state.farmer?.status;
+  const isVerified = farmerStatus === 'Active' || farmerStatus === 'Verified';
 
   return (
     <NavigationContainer>
@@ -121,7 +137,11 @@ export default function AppNavigator() {
             <Stack.Screen name="Login" component={LoginScreen} />
             <Stack.Screen name="Otp" component={OtpScreen} />
           </>
-        ) : (farmerStatus === 'Active' || farmerStatus === 'Verified') ? (
+        ) : isVerified && showCongrats ? (
+          <Stack.Screen name="Verified">
+            {() => <VerifiedScreen onDone={() => setShowCongrats(false)} />}
+          </Stack.Screen>
+        ) : isVerified ? (
           <Stack.Screen name="Main" component={MainTabs} />
         ) : farmerStatus === 'Pending' ? (
           <Stack.Screen name="Pending" component={PendingScreen} />

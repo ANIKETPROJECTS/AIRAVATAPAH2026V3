@@ -44,6 +44,13 @@ export interface Notification {
   readAt?: string | null;
 }
 
+export interface SchemeEligibilityObject {
+  summary?: string;
+  familyCriteria?: string[];
+  exclusions?: string[];
+  parameters?: { parameter: string; rule: string }[];
+}
+
 export interface Scheme {
   id: string;
   name: string;
@@ -52,8 +59,10 @@ export interface Scheme {
   description?: string;
   deadline?: string;
   benefit?: string;
+  benefits?: string;
   ministry?: string;
-  eligibility?: string;
+  eligibility?: string | SchemeEligibilityObject;
+  category?: string;
 }
 
 export type DocumentTypeId = 'aadhar' | 'bank_passbook' | 'form7' | 'form12' | 'form8a';
