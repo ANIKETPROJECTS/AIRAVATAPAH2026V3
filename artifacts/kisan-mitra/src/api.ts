@@ -1,4 +1,4 @@
-import { Farmer, Notification, Scheme } from './types';
+import { Farmer, Notification, Scheme, InsuranceSubsidy } from './types';
 
 function getApiBase(): string {
   if (typeof window === 'undefined') {
@@ -130,6 +130,20 @@ export const api = {
     }),
 
   getSchemes: () => request<Scheme[]>('/schemes'),
+
+  submitRegistration: (mobile: string) =>
+    request<Farmer>('/farmers/submit-registration', {
+      method: 'POST',
+      body: JSON.stringify({ mobile }),
+    }),
+
+  getInsuranceSubsidies: (params?: { type?: 'Insurance' | 'Subsidy'; limit?: number }) => {
+    const qs = new URLSearchParams();
+    if (params?.type) qs.set('type', params.type);
+    if (params?.limit) qs.set('limit', String(params.limit));
+    qs.set('limit', String(params?.limit ?? 50));
+    return request<{ items: InsuranceSubsidy[]; total: number }>(`/insurance-subsidies?${qs.toString()}`);
+  },
 
   registerPushToken: (mobile: string, pushToken: string) =>
     request<{ success: boolean }>('/auth/register-push-token', {

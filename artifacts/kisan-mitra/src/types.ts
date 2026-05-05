@@ -1,4 +1,4 @@
-export type FarmerStatus = 'Pending' | 'Active' | 'Inactive' | 'Rejected';
+export type FarmerStatus = 'Draft' | 'Pending' | 'Active' | 'Inactive' | 'Rejected';
 
 export interface FarmerDoc {
   name: string;
@@ -126,3 +126,18 @@ export interface DocUploadState {
 }
 
 export type Lang = 'en' | 'hi' | 'mr';
+
+export interface InsuranceSubsidy {
+  id: string;
+  name: string;
+  type: 'Insurance' | 'Subsidy';
+  region: 'Central' | 'Maharashtra';
+  status: 'Active' | 'Closed';
+  description?: string;
+  benefit?: string;
+  eligibility?: string;
+  deadline?: string;
+  crops?: string[];
+  minLand?: number;
+  maxLand?: number;
+}

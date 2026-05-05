@@ -388,7 +388,7 @@ async function persistToProfile(
       await farmersCol.insertOne({
         farmerId,
         mobile,
-        status: "Pending",
+        status: "Draft",
         source: "mobile_ocr",
         name: "—",
         aadhaar: "—",

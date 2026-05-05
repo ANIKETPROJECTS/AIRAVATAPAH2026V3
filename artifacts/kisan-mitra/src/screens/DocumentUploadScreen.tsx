@@ -118,7 +118,7 @@ export default function DocumentUploadScreen() {
     if (!allDone) return;
     setSubmitting(true);
     try {
-      const farmer = await api.getFarmerByPhone(mobile);
+      const farmer = await api.submitRegistration(mobile);
       updateFarmer(farmer);
     } catch {
       updateFarmer({

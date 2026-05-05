@@ -11,6 +11,7 @@ import LoginScreen from '../screens/LoginScreen';
 import OtpScreen from '../screens/OtpScreen';
 import DocumentUploadScreen from '../screens/DocumentUploadScreen';
 import PendingScreen from '../screens/PendingScreen';
+import RejectedScreen from '../screens/RejectedScreen';
 import HomeScreen from '../screens/HomeScreen';
 import SchemesScreen from '../screens/SchemesScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
@@ -22,6 +23,7 @@ export type RootStackParamList = {
   Otp: { mobile: string; devOtp?: string };
   DocumentUpload: undefined;
   Pending: undefined;
+  Rejected: undefined;
   Main: undefined;
 };
 
@@ -36,15 +38,8 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<TabParamList>();
 
 function TabIcon({ name, focused }: { name: string; focused: boolean }) {
-  const icons: Record<string, string> = {
-    Home: '🏠',
-    Schemes: '📋',
-    Notifications: '🔔',
-    Profile: '👤',
-  };
   return (
     <View style={{ opacity: focused ? 1 : 0.5 }}>
-      {/* icon placeholder — rendered as text emoji */}
       <View />
     </View>
   );
@@ -115,6 +110,8 @@ export default function AppNavigator() {
     );
   }
 
+  const farmerStatus = state.farmer?.status;
+
   return (
     <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
@@ -124,11 +121,14 @@ export default function AppNavigator() {
             <Stack.Screen name="Login" component={LoginScreen} />
             <Stack.Screen name="Otp" component={OtpScreen} />
           </>
-        ) : state.farmer?.status === 'Active' ? (
+        ) : farmerStatus === 'Active' ? (
           <Stack.Screen name="Main" component={MainTabs} />
-        ) : state.farmer?.status === 'Pending' ? (
+        ) : farmerStatus === 'Pending' ? (
           <Stack.Screen name="Pending" component={PendingScreen} />
+        ) : farmerStatus === 'Rejected' ? (
+          <Stack.Screen name="Rejected" component={RejectedScreen} />
         ) : (
+          /* Draft, Inactive, null — stay on DocumentUpload */
           <Stack.Screen name="DocumentUpload" component={DocumentUploadScreen} />
         )}
       </Stack.Navigator>

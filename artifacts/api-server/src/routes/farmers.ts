@@ -61,7 +61,10 @@ router.get("/farmers", async (_req, res, next) => {
   try {
     const db = getDb();
     const col = db.collection("farmers");
-    const farmers = await col.find({}, { projection: { _id: 0 } }).sort({ addedAt: -1 }).toArray();
+    const farmers = await col
+      .find({ status: { $ne: "Draft" } }, { projection: { _id: 0 } })
+      .sort({ addedAt: -1 })
+      .toArray();
     res.json(farmers);
   } catch (err) {
     next(err);
@@ -95,6 +98,53 @@ router.patch("/farmers/:id", async (req, res, next) => {
     const updated = await col.findOne({ farmerId: req.params["id"] }, { projection: { _id: 0 } });
     if (!updated) { res.status(404).json({ error: "Farmer not found" }); return; }
     res.json(updated);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post("/farmers/submit-registration", async (req, res, next) => {
+  try {
+    const db = getDb();
+    const col = db.collection("farmers");
+    const mobile = typeof req.body?.mobile === "string" ? req.body.mobile.trim() : "";
+    if (!mobile) { res.status(400).json({ error: "mobile is required" }); return; }
+
+    const now = new Date().toISOString();
+    const existing = await col.findOne({ mobile }, { projection: { _id: 0 } });
+
+    if (existing) {
+      if (existing["status"] === "Pending" || existing["status"] === "Active" || existing["status"] === "Rejected") {
+        res.json(existing);
+        return;
+      }
+      await col.updateOne({ mobile }, { $set: { status: "Pending", submittedAt: now, updatedAt: now } });
+      const updated = await col.findOne({ mobile }, { projection: { _id: 0 } });
+      res.json(updated);
+    } else {
+      const farmerId = await getNextFarmerId(col);
+      const farmer = {
+        farmerId,
+        mobile,
+        status: "Pending",
+        source: "mobile_ocr",
+        name: "—",
+        aadhaar: "—",
+        village: "—",
+        district: "—",
+        surveyNumber: "—",
+        bankAccount: "—",
+        crop: "—",
+        land: "—",
+        addedAt: now,
+        submittedAt: now,
+        updatedAt: now,
+        docs: [],
+      };
+      await col.insertOne(farmer);
+      const { _id: _r, ...clean } = farmer as typeof farmer & { _id?: unknown };
+      res.status(201).json(clean);
+    }
   } catch (err) {
     next(err);
   }
