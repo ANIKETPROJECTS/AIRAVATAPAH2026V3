@@ -80,6 +80,7 @@ export interface FarmerRecord {
   aiRiskScore?: number;
   extractionData?: Record<string, SavedDocState>;
   farmerProfile?: Record<string, string>;
+  rejectionReason?: string;
   address?: string;
   state?: string;
   farmerNames?: string[];

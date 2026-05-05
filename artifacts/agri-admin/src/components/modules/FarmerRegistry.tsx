@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useNotifications } from "@/contexts/NotificationContext";
-import { Search, Plus, Upload, Download, ChevronLeft, ChevronRight, Sparkles, Loader2, AlertCircle, Trash2, Eye, XCircle, CheckCircle2 } from "lucide-react";
+import { Search, Plus, Upload, Download, ChevronLeft, ChevronRight, Sparkles, Loader2, AlertCircle, Trash2, Eye, CheckCircle2 } from "lucide-react";
 import { apiFetchFarmers, apiDeleteFarmer, apiUpdateFarmer, notifyFarmerChange, type FarmerRecord } from "@/data/farmerApi";
 import FarmerRegistrationForm from "@/components/forms/FarmerRegistrationForm";
 import FarmerDetailModal from "@/components/modules/FarmerDetailModal";
@@ -45,8 +45,6 @@ export default function FarmerRegistry({ onNavigate }: { onNavigate?: (key: stri
   const [toast, setToast] = useState("");
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
-  const [quickAction, setQuickAction] = useState<string | null>(null);
-
   const loadFarmers = useCallback(async () => {
     try {
       setError("");
@@ -137,22 +135,6 @@ export default function FarmerRegistry({ onNavigate }: { onNavigate?: (key: stri
       addNotification({ type:"farmer", title:"Farmer Verified ✓", body:`${updated.name} (${updated.farmerId}) passed verification — now visible in Verified Farmers.`, farmerName:updated.name, farmerId:updated.farmerId });
     } else if (updated.status === "Cancelled") {
       addNotification({ type:"system", title:"Registration Rejected", body:`${updated.name} (${updated.farmerId}) registration was rejected during review.`, farmerName:updated.name, farmerId:updated.farmerId });
-    }
-  };
-
-  const handleQuickReject = async (farmerId: string) => {
-    if (quickAction === farmerId) {
-      setQuickAction(null);
-      try {
-        const updated = await apiUpdateFarmer(farmerId, { status: "Cancelled" });
-        setFarmers(prev => prev.map(f => f.farmerId === updated.farmerId ? updated : f));
-        showToast("Farmer rejected");
-      } catch {
-        showToast("Action failed — please try again");
-      }
-    } else {
-      setQuickAction(farmerId);
-      setTimeout(() => setQuickAction(prev => prev === farmerId ? null : prev), 3000);
     }
   };
 
@@ -275,28 +257,15 @@ export default function FarmerRegistry({ onNavigate }: { onNavigate?: (key: stri
                     <td className="px-4 py-2.5"><StatusBadge status={f.status} /></td>
                     <td className="px-4 py-2.5">
                       <div className="flex gap-1 items-center flex-wrap">
-                        {/* Pending farmers: Review + Reject */}
+                        {/* Pending farmers: Review only (Reject is inside the review modal) */}
                         {f.status === "Pending" && (
-                          <>
-                            <button
-                              onClick={() => setReviewFarmer(f)}
-                              className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-md bg-primary text-primary-foreground hover:opacity-85 font-medium transition-opacity"
-                            >
-                              <Eye className="h-3 w-3" />
-                              Review
-                            </button>
-                            <button
-                              onClick={() => handleQuickReject(f.farmerId)}
-                              className={`flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-md font-medium transition-colors ${
-                                quickAction === f.farmerId
-                                  ? "bg-destructive text-destructive-foreground animate-pulse"
-                                  : "bg-destructive/10 text-destructive hover:bg-destructive/20"
-                              }`}
-                            >
-                              <XCircle className="h-3 w-3" />
-                              {quickAction === f.farmerId ? "Confirm?" : "Reject"}
-                            </button>
-                          </>
+                          <button
+                            onClick={() => setReviewFarmer(f)}
+                            className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-md bg-primary text-primary-foreground hover:opacity-85 font-medium transition-opacity"
+                          >
+                            <Eye className="h-3 w-3" />
+                            Review
+                          </button>
                         )}
 
                         {/* Verified farmers: View (read-only) */}

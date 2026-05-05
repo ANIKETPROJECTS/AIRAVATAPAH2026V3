@@ -30,6 +30,7 @@ export interface Farmer {
   docs?: FarmerDoc[];
   addedAt: string;
   source?: string;
+  rejectionReason?: string;
 }
 
 export interface Notification {

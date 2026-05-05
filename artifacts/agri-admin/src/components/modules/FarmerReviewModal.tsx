@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import {
   X, CheckCircle2, XCircle, ShieldCheck, Loader2,
   FileStack, Sprout, ClipboardCheck, CreditCard, BookOpen,
-  UserCheck, RotateCcw, AlertTriangle, FileText,
+  UserCheck, RotateCcw, AlertTriangle, FileText, MessageSquare,
 } from "lucide-react";
 import {
   type DocTypeId,
@@ -66,7 +66,6 @@ function DocContentView({
 
   return (
     <div className="space-y-4">
-      {/* Filename badge */}
       {state.filename && (
         <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/40 rounded-md px-3 py-2 border border-border">
           <FileText className="h-3.5 w-3.5 flex-shrink-0" />
@@ -74,7 +73,6 @@ function DocContentView({
         </div>
       )}
 
-      {/* Aadhar photo if present */}
       {docId === "aadhar" && state.aadharPhoto && (
         <div className="flex justify-center">
           <img
@@ -85,7 +83,6 @@ function DocContentView({
         </div>
       )}
 
-      {/* Main structured content */}
       {(state.sections.length > 0 || hasRawTables) && (
         <FieldsTable
           sections={state.sections}
@@ -96,7 +93,6 @@ function DocContentView({
         />
       )}
 
-      {/* Sparse data warning */}
       {!hasMeaningfulContent && state.sections.length > 0 && (
         <div className="flex items-start gap-3 p-4 rounded-lg bg-amber-50 border border-amber-200 text-amber-800">
           <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5" />
@@ -110,7 +106,6 @@ function DocContentView({
         </div>
       )}
 
-      {/* No data at all */}
       {state.sections.length === 0 && !hasRawTables && !hasTextBlocks && (
         <div className="flex flex-col items-center justify-center py-16 text-muted-foreground gap-3">
           <BookOpen className="h-10 w-10 opacity-20" />
@@ -118,7 +113,6 @@ function DocContentView({
         </div>
       )}
 
-      {/* Raw text blocks — always show for documents, expanded */}
       {hasTextBlocks && (
         <div>
           <button
@@ -145,6 +139,74 @@ function DocContentView({
   );
 }
 
+function RejectReasonDialog({
+  onCancel,
+  onConfirm,
+  saving,
+}: {
+  onCancel: () => void;
+  onConfirm: (reason: string) => void;
+  saving: boolean;
+}) {
+  const [reason, setReason] = useState("");
+
+  return (
+    <div className="fixed inset-0 flex items-center justify-center" style={{ zIndex: 10001 }}>
+      <div className="absolute inset-0 bg-black/50" onClick={onCancel} />
+      <div className="relative bg-white rounded-2xl shadow-2xl border border-border w-full max-w-md mx-4 overflow-hidden">
+        <div className="flex items-center gap-3 px-6 py-4 border-b border-border bg-red-50">
+          <div className="w-9 h-9 rounded-lg bg-red-100 flex items-center justify-center flex-shrink-0">
+            <XCircle className="h-5 w-5 text-red-600" />
+          </div>
+          <div>
+            <h3 className="font-bold text-base text-red-800">Reject Registration</h3>
+            <p className="text-xs text-red-600 mt-0.5">This action will notify the farmer of the rejection.</p>
+          </div>
+        </div>
+
+        <div className="px-6 py-5 space-y-4">
+          <div>
+            <label className="block text-sm font-semibold text-foreground mb-1.5">
+              <MessageSquare className="h-4 w-4 inline mr-1.5 text-muted-foreground" />
+              Reason for Rejection
+              <span className="text-red-500 ml-1">*</span>
+            </label>
+            <textarea
+              value={reason}
+              onChange={e => setReason(e.target.value)}
+              placeholder="e.g. Aadhaar document is unclear / blurry. Please re-upload a clear scan.&#10;&#10;Or: Land records (Form 7/12) do not match the declared survey number."
+              rows={5}
+              autoFocus
+              className="w-full text-sm px-3 py-2.5 rounded-lg border border-border bg-muted/20 focus:outline-none focus:ring-2 focus:ring-red-300 focus:border-red-300 resize-none transition-all"
+            />
+            <p className="text-xs text-muted-foreground mt-1.5">
+              This reason will be shown to the farmer in their mobile app.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-border bg-muted/20">
+          <button
+            onClick={onCancel}
+            disabled={saving}
+            className="px-4 py-2.5 rounded-lg border border-border bg-card text-sm font-medium hover:bg-muted/40 transition-colors disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => onConfirm(reason.trim())}
+            disabled={saving || !reason.trim()}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-semibold transition-colors disabled:opacity-50 shadow-sm"
+          >
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />}
+            Confirm Rejection
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function FarmerReviewModal({
   farmer,
   onClose,
@@ -158,6 +220,7 @@ export default function FarmerReviewModal({
   const [customPhoto, setCustomPhoto] = useState<string | null>(null);
   const [saving, setSaving] = useState<string | null>(null);
   const [modalStep, setModalStep] = useState<"review" | "verify">("review");
+  const [showRejectDialog, setShowRejectDialog] = useState(false);
 
   const docStates: DocStates = useMemo(() => {
     const states = Object.fromEntries(
@@ -214,10 +277,10 @@ export default function FarmerReviewModal({
     completedCards.length > 0 ? completedCards[0].id : "profile"
   );
 
-  const handleUpdateStatus = async (status: FarmerRecord["status"]) => {
+  const handleUpdateStatus = async (status: FarmerRecord["status"], rejectionReason?: string) => {
     setSaving(status);
     try {
-      const updated = await apiUpdateFarmer(farmer.farmerId, {
+      const payload: Partial<FarmerRecord> = {
         status,
         farmerProfile: profile as unknown as Record<string, string>,
         name: profile.name || farmer.name,
@@ -225,12 +288,19 @@ export default function FarmerReviewModal({
         taluka: profile.taluka || farmer.taluka,
         district: profile.district || farmer.district,
         khateNumber: profile.khateNumber || farmer.khateNumber,
-      });
+      };
+      if (rejectionReason) payload.rejectionReason = rejectionReason;
+      const updated = await apiUpdateFarmer(farmer.farmerId, payload);
       onUpdated(updated);
       onClose();
     } catch {
       setSaving(null);
     }
+  };
+
+  const handleRejectConfirm = async (reason: string) => {
+    setShowRejectDialog(false);
+    await handleUpdateStatus("Cancelled", reason);
   };
 
   const isPending = farmer.status === "Pending";
@@ -242,6 +312,15 @@ export default function FarmerReviewModal({
       className="fixed inset-0 bg-background flex flex-col"
       style={{ zIndex: 9999 }}
     >
+      {/* Rejection reason dialog overlay */}
+      {showRejectDialog && (
+        <RejectReasonDialog
+          onCancel={() => setShowRejectDialog(false)}
+          onConfirm={handleRejectConfirm}
+          saving={!!saving}
+        />
+      )}
+
       {/* ── Header ── */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-card flex-shrink-0">
         <div className="flex items-center gap-3">
@@ -297,7 +376,6 @@ export default function FarmerReviewModal({
 
       {/* ── Content ── */}
       <div className="flex-1 overflow-y-auto p-6">
-        {/* No extraction data */}
         {completedCards.length === 0 && activeTab !== "profile" && (
           <div className="flex flex-col items-center justify-center py-20 text-muted-foreground gap-3">
             <BookOpen className="h-10 w-10 opacity-20" />
@@ -306,7 +384,6 @@ export default function FarmerReviewModal({
           </div>
         )}
 
-        {/* Document tab content */}
         {activeTab !== "profile" && docStates[activeTab as DocTypeId]?.status === "complete" && (
           <DocContentView
             state={docStates[activeTab as DocTypeId]}
@@ -315,7 +392,6 @@ export default function FarmerReviewModal({
           />
         )}
 
-        {/* Profile tab */}
         {activeTab === "profile" && (
           <FarmerProfileCard
             docStates={docStates}
@@ -336,19 +412,11 @@ export default function FarmerReviewModal({
       {/* ── Footer actions ── */}
       <div className="flex-shrink-0 border-t border-border bg-card px-6 py-4">
 
-        {/* Pending — step 1: Review */}
+        {/* Pending — step 1: Review documents, then decide */}
         {isPending && modalStep === "review" && (
           <div className="flex items-center gap-3 justify-between flex-wrap gap-y-2">
             <p className="text-sm text-muted-foreground">Review all documents and farmer profile before deciding.</p>
             <div className="flex items-center gap-3">
-              <button
-                onClick={() => handleUpdateStatus("Cancelled")}
-                disabled={!!saving}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-red-200 bg-red-50 text-red-700 text-sm font-medium hover:bg-red-100 transition-colors disabled:opacity-50"
-              >
-                {saving === "Cancelled" ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />}
-                Reject Farmer
-              </button>
               <button
                 onClick={() => setModalStep("verify")}
                 disabled={!!saving}
@@ -361,12 +429,12 @@ export default function FarmerReviewModal({
           </div>
         )}
 
-        {/* Pending — step 2: Approve verification */}
+        {/* Pending — step 2: Approve verification or Reject with reason */}
         {isPending && modalStep === "verify" && (
           <div className="flex items-center gap-3 justify-between flex-wrap gap-y-2">
             <div className="flex items-center gap-2 text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
               <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
-              Farmer accepted — verify data and approve.
+              Farmer accepted — verify data and approve, or reject if any issue is found.
             </div>
             <div className="flex items-center gap-3">
               <button
@@ -377,7 +445,7 @@ export default function FarmerReviewModal({
                 Back
               </button>
               <button
-                onClick={() => handleUpdateStatus("Cancelled")}
+                onClick={() => setShowRejectDialog(true)}
                 disabled={!!saving}
                 className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-red-200 bg-red-50 text-red-700 text-sm font-medium hover:bg-red-100 transition-colors disabled:opacity-50"
               >
@@ -412,12 +480,20 @@ export default function FarmerReviewModal({
           </div>
         )}
 
-        {/* Cancelled — with Restore option */}
+        {/* Cancelled — show rejection reason and Restore option */}
         {isCancelled && (
           <div className="flex items-center justify-between flex-wrap gap-3">
-            <div className="flex items-center gap-2 text-sm px-3 py-2 rounded-lg border bg-red-50 border-red-200 text-red-700">
-              <XCircle className="h-4 w-4 flex-shrink-0" />
-              This farmer registration was cancelled.
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-2 text-sm px-3 py-2 rounded-lg border bg-red-50 border-red-200 text-red-700">
+                <XCircle className="h-4 w-4 flex-shrink-0" />
+                This farmer registration was rejected.
+              </div>
+              {farmer.rejectionReason && (
+                <div className="flex items-start gap-2 text-xs px-3 py-2 rounded-lg border bg-red-50/50 border-red-100 text-red-600 max-w-lg">
+                  <MessageSquare className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" />
+                  <span><strong>Reason:</strong> {farmer.rejectionReason}</span>
+                </div>
+              )}
             </div>
             <div className="flex items-center gap-3">
               <button

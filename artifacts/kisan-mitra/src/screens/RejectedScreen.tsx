@@ -40,14 +40,14 @@ export default function RejectedScreen() {
             </View>
           </View>
           <Text style={styles.title}>
-            {state.lang === 'hi' ? 'आवेदन अस्वीकृत' : state.lang === 'mr' ? 'अर्ज नाकारला' : 'Application Rejected'}
+            {state.lang === 'hi' ? 'आवेदन अस्वीकृत' : state.lang === 'mr' ? 'अर्ज नाकारला' : 'Profile Rejected'}
           </Text>
           <Text style={styles.subtitle}>
             {state.lang === 'hi'
-              ? 'आपका किसान पंजीकरण अनुरोध अस्वीकार कर दिया गया है।'
+              ? 'आपका किसान पंजीकरण अनुरोध कृषि अधिकारी द्वारा अस्वीकार कर दिया गया है।'
               : state.lang === 'mr'
-              ? 'तुमचा शेतकरी नोंदणी अर्ज नाकारण्यात आला आहे.'
-              : 'Your farmer registration request has been rejected by the agriculture officer.'}
+              ? 'तुमचा शेतकरी नोंदणी अर्ज कृषी अधिकाऱ्याने नाकारला आहे.'
+              : 'Your farmer registration has been rejected by the agriculture officer.'}
           </Text>
         </View>
 
@@ -64,21 +64,43 @@ export default function RejectedScreen() {
           </View>
         )}
 
+        {/* Rejection Reason Card */}
+        {!!farmer?.rejectionReason && (
+          <View style={styles.reasonCard}>
+            <View style={styles.reasonHeader}>
+              <Text style={styles.reasonIcon}>📋</Text>
+              <Text style={styles.reasonTitle}>
+                {state.lang === 'hi' ? 'अस्वीकृति का कारण' : state.lang === 'mr' ? 'नाकारण्याचे कारण' : 'Reason for Rejection'}
+              </Text>
+            </View>
+            <Text style={styles.reasonText}>{farmer.rejectionReason}</Text>
+            <View style={styles.reasonFooter}>
+              <Text style={styles.reasonFooterText}>
+                {state.lang === 'hi'
+                  ? '— कृषि अधिकारी द्वारा'
+                  : state.lang === 'mr'
+                  ? '— कृषी अधिकाऱ्यांकडून'
+                  : '— Agriculture Officer'}
+              </Text>
+            </View>
+          </View>
+        )}
+
         <View style={styles.stepsCard}>
           <Text style={styles.cardTitle}>
             {state.lang === 'hi' ? '📋 अगले कदम' : state.lang === 'mr' ? '📋 पुढील पायऱ्या' : '📋 What to do next'}
           </Text>
           {[
             state.lang === 'hi'
-              ? 'अपने नजदीकी कृषि कार्यालय से संपर्क करें और अस्वीकृति का कारण जानें।'
+              ? 'ऊपर दिए गए कारण को ध्यान से पढ़ें और अपने दस्तावेज़ ठीक करें।'
               : state.lang === 'mr'
-              ? 'तुमच्या जवळच्या कृषी कार्यालयाशी संपर्क साधा आणि नाकारण्याचे कारण जाणून घ्या.'
-              : 'Visit your nearest Agriculture Office to learn the reason for rejection.',
+              ? 'वरील नाकारण्याचे कारण काळजीपूर्वक वाचा आणि तुमचे कागदपत्र दुरुस्त करा.'
+              : 'Read the rejection reason above carefully and correct the mentioned issues.',
             state.lang === 'hi'
-              ? 'अपने दस्तावेज़ सही करके नए मोबाइल नंबर से पुनः पंजीकरण करें।'
+              ? 'अपने नजदीकी कृषि कार्यालय से संपर्क करें और सही दस्तावेज़ जमा करें।'
               : state.lang === 'mr'
-              ? 'तुमचे कागदपत्र दुरुस्त करा आणि नव्या मोबाइल नंबरने पुन्हा नोंदणी करा.'
-              : 'Correct your documents and re-register with a new mobile number.',
+              ? 'तुमच्या जवळच्या कृषी कार्यालयाशी संपर्क साधा आणि योग्य कागदपत्रे सादर करा.'
+              : 'Visit your nearest Agriculture Office with the corrected documents.',
             state.lang === 'hi'
               ? 'किसी समस्या के लिए कृषि विभाग हेल्पलाइन से संपर्क करें।'
               : state.lang === 'mr'
@@ -159,6 +181,16 @@ const styles = StyleSheet.create({
   idMobile: { fontSize: FONT_SIZE.sm, color: 'rgba(255,255,255,0.6)', marginTop: 4 },
   idIconBox: { width: 52, height: 52, borderRadius: 26, backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' },
   idIcon: { fontSize: 26 },
+  reasonCard: {
+    backgroundColor: '#FFF5F5', borderRadius: RADIUS.lg, padding: 18,
+    marginBottom: 16, borderWidth: 1.5, borderColor: '#FCA5A5', ...SHADOW.sm,
+  },
+  reasonHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
+  reasonIcon: { fontSize: 18 },
+  reasonTitle: { fontSize: FONT_SIZE.base, fontWeight: '800', color: COLORS.error },
+  reasonText: { fontSize: FONT_SIZE.base, color: '#7F1D1D', lineHeight: 22, fontStyle: 'italic' },
+  reasonFooter: { marginTop: 12, borderTopWidth: 1, borderTopColor: '#FCA5A5', paddingTop: 8 },
+  reasonFooterText: { fontSize: FONT_SIZE.xs, color: '#991B1B', fontWeight: '600' },
   stepsCard: {
     backgroundColor: COLORS.white, borderRadius: RADIUS.lg, padding: 18,
     marginBottom: 16, ...SHADOW.sm, gap: 14,

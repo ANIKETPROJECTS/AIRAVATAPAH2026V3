@@ -9,6 +9,7 @@ interface AuthState {
   mobile: string | null;
   farmer: Farmer | null;
   lang: Lang;
+  justLoggedIn: boolean;
 }
 
 type AuthAction =
@@ -16,20 +17,23 @@ type AuthAction =
   | { type: 'LOGIN'; payload: { token: string; mobile: string; farmer: Farmer | null } }
   | { type: 'UPDATE_FARMER'; payload: Farmer | null }
   | { type: 'SET_LANG'; payload: Lang }
+  | { type: 'CLEAR_JUST_LOGGED_IN' }
   | { type: 'LOGOUT' };
 
 function reducer(state: AuthState, action: AuthAction): AuthState {
   switch (action.type) {
     case 'INIT':
-      return { loading: false, ...action.payload };
+      return { loading: false, justLoggedIn: false, ...action.payload };
     case 'LOGIN':
-      return { ...state, loading: false, ...action.payload };
+      return { ...state, loading: false, justLoggedIn: true, ...action.payload };
     case 'UPDATE_FARMER':
       return { ...state, farmer: action.payload };
     case 'SET_LANG':
       return { ...state, lang: action.payload };
+    case 'CLEAR_JUST_LOGGED_IN':
+      return { ...state, justLoggedIn: false };
     case 'LOGOUT':
-      return { loading: false, token: null, mobile: null, farmer: null, lang: state.lang };
+      return { loading: false, token: null, mobile: null, farmer: null, lang: state.lang, justLoggedIn: false };
     default:
       return state;
   }
@@ -42,15 +46,17 @@ interface AuthContextValue {
   refreshFarmer: () => Promise<void>;
   updateFarmer: (farmer: Farmer | null) => void;
   setLang: (lang: Lang) => void;
+  clearJustLoggedIn: () => void;
 }
 
 const AuthContext = createContext<AuthContextValue>({
-  state: { loading: true, token: null, mobile: null, farmer: null, lang: 'en' },
+  state: { loading: true, token: null, mobile: null, farmer: null, lang: 'en', justLoggedIn: false },
   login: async () => {},
   logout: async () => {},
   refreshFarmer: async () => {},
   updateFarmer: () => {},
   setLang: () => {},
+  clearJustLoggedIn: () => {},
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -60,6 +66,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     mobile: null,
     farmer: null,
     lang: 'en',
+    justLoggedIn: false,
   });
 
   useEffect(() => {
@@ -120,8 +127,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: 'SET_LANG', payload: lang });
   }, []);
 
+  const clearJustLoggedIn = useCallback(() => {
+    dispatch({ type: 'CLEAR_JUST_LOGGED_IN' });
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ state, login, logout, refreshFarmer, updateFarmer, setLang }}>
+    <AuthContext.Provider value={{ state, login, logout, refreshFarmer, updateFarmer, setLang, clearJustLoggedIn }}>
       {children}
     </AuthContext.Provider>
   );
