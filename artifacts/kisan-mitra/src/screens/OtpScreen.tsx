@@ -72,12 +72,15 @@ export default function OtpScreen({ navigation, route }: Props) {
 
   return (
     <SafeAreaView style={styles.safe}>
+      <View style={styles.topBar}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+          <Text style={styles.backText}>← {t('back')}</Text>
+        </TouchableOpacity>
+        <Text style={styles.topBarTitle}>कृषी सुविधा</Text>
+      </View>
+
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.kav}>
         <View style={styles.container}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-            <Text style={styles.backText}>← {t('back')}</Text>
-          </TouchableOpacity>
-
           <View style={styles.header}>
             <View style={styles.iconBox}>
               <Text style={styles.iconEmoji}>🔐</Text>
@@ -90,20 +93,18 @@ export default function OtpScreen({ navigation, route }: Props) {
           </View>
 
           {devOtp && (
-            <TouchableOpacity
-              style={styles.devBanner}
-              onPress={() => setOtp(devOtp)}
-            >
+            <TouchableOpacity style={styles.devBanner} onPress={() => setOtp(devOtp)}>
               <Text style={styles.devText}>
-                🔧 Dev mode: OTP is <Text style={styles.devOtp}>{devOtp}</Text> — tap to fill
+                🔧 Dev mode — OTP: <Text style={styles.devOtp}>{devOtp}</Text>  (tap to fill)
               </Text>
             </TouchableOpacity>
           )}
 
           <View style={styles.otpCard}>
+            <Text style={styles.otpCardLabel}>Enter 6-digit OTP</Text>
             <TextInput
               style={styles.otpInput}
-              placeholder="------"
+              placeholder="- - - - - -"
               placeholderTextColor={COLORS.textMuted}
               keyboardType="number-pad"
               maxLength={6}
@@ -112,34 +113,41 @@ export default function OtpScreen({ navigation, route }: Props) {
               textAlign="center"
               autoFocus
             />
+            <View style={styles.otpDots}>
+              {[0,1,2,3,4,5].map(i => (
+                <View key={i} style={[styles.otpDot, i < otp.length && styles.otpDotFilled]} />
+              ))}
+            </View>
           </View>
 
           <TouchableOpacity
             style={[styles.btn, (otp.length !== 6 || loading) && styles.btnDisabled]}
             onPress={handleVerify}
             disabled={otp.length !== 6 || loading}
+            activeOpacity={0.85}
           >
             {loading
               ? <ActivityIndicator color={COLORS.white} />
-              : <Text style={styles.btnText}>{t('verify')}</Text>}
+              : <Text style={styles.btnText}>{t('verify')}  →</Text>}
           </TouchableOpacity>
 
           <View style={styles.resendRow}>
             {canResend ? (
-              <TouchableOpacity onPress={handleResend} disabled={resending}>
+              <TouchableOpacity onPress={handleResend} disabled={resending} style={styles.resendBtn}>
                 <Text style={styles.resendLink}>{resending ? '...' : t('resendOtp')}</Text>
               </TouchableOpacity>
             ) : (
-              <Text style={styles.timerText}>
-                {t('resendIn')} {mins}:{String(secs).padStart(2, '0')} {t('seconds')}
-              </Text>
+              <View style={styles.timerBox}>
+                <Text style={styles.timerText}>
+                  Resend in  <Text style={styles.timerValue}>{mins}:{String(secs).padStart(2, '0')}</Text>
+                </Text>
+              </View>
             )}
           </View>
 
           <View style={styles.hintBox}>
-            <Text style={styles.hintText}>
-              💡 The OTP is valid for 5 minutes. Check your SMS inbox.
-            </Text>
+            <Text style={styles.hintIcon}>💡</Text>
+            <Text style={styles.hintText}>The OTP is valid for 5 minutes. Check your SMS inbox.</Text>
           </View>
         </View>
       </KeyboardAvoidingView>
@@ -148,46 +156,74 @@ export default function OtpScreen({ navigation, route }: Props) {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: COLORS.primaryBg },
-  kav: { flex: 1 },
-  container: { flex: 1, paddingHorizontal: 24, paddingTop: 20, paddingBottom: 40 },
-  backBtn: { marginBottom: 32 },
-  backText: { color: COLORS.primary, fontSize: FONT_SIZE.base, fontWeight: '600' },
-  header: { alignItems: 'center', marginBottom: 32 },
-  iconBox: {
-    width: 72, height: 72, borderRadius: 36,
-    backgroundColor: COLORS.primaryLight, alignItems: 'center', justifyContent: 'center', marginBottom: 16,
+  safe: { flex: 1, backgroundColor: COLORS.background },
+  topBar: {
+    backgroundColor: COLORS.primaryDark, paddingHorizontal: 20, paddingVertical: 14,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
   },
-  iconEmoji: { fontSize: 34 },
-  title: { fontSize: FONT_SIZE['2xl'], fontWeight: '800', color: COLORS.text, marginBottom: 8 },
+  backBtn: { paddingVertical: 4 },
+  backText: { color: 'rgba(255,255,255,0.8)', fontSize: FONT_SIZE.base, fontWeight: '600' },
+  topBarTitle: { fontSize: FONT_SIZE.base, fontWeight: '800', color: COLORS.gold },
+  kav: { flex: 1 },
+  container: { flex: 1, paddingHorizontal: 24, paddingTop: 36, paddingBottom: 40 },
+  header: { alignItems: 'center', marginBottom: 28 },
+  iconBox: {
+    width: 76, height: 76, borderRadius: 38,
+    backgroundColor: COLORS.primaryBg, alignItems: 'center', justifyContent: 'center',
+    marginBottom: 16, borderWidth: 2, borderColor: COLORS.primaryLight, ...SHADOW.sm,
+  },
+  iconEmoji: { fontSize: 36 },
+  title: { fontSize: FONT_SIZE['2xl'], fontWeight: '800', color: COLORS.primaryDark, marginBottom: 8 },
   subtitle: { fontSize: FONT_SIZE.base, color: COLORS.textSecondary, textAlign: 'center', lineHeight: 24 },
-  mobileText: { fontWeight: '700', color: COLORS.text },
+  mobileText: { fontWeight: '800', color: COLORS.primaryDark },
   devBanner: {
     backgroundColor: '#FEF9C3', borderRadius: RADIUS.md, padding: 12,
     marginBottom: 16, borderWidth: 1, borderColor: '#FDE047',
   },
-  devText: { fontSize: FONT_SIZE.sm, color: '#713F12' },
-  devOtp: { fontWeight: '800', letterSpacing: 2 },
+  devText: { fontSize: FONT_SIZE.sm, color: '#713F12', textAlign: 'center' },
+  devOtp: { fontWeight: '800', letterSpacing: 3 },
   otpCard: {
     backgroundColor: COLORS.white, borderRadius: RADIUS.lg, marginBottom: 24,
-    borderWidth: 2, borderColor: COLORS.border, ...SHADOW.sm,
+    borderWidth: 2, borderColor: COLORS.border, ...SHADOW.sm, overflow: 'hidden',
+  },
+  otpCardLabel: {
+    fontSize: FONT_SIZE.xs, fontWeight: '700', color: COLORS.primary,
+    textTransform: 'uppercase', letterSpacing: 1.5,
+    paddingHorizontal: 16, paddingTop: 12, paddingBottom: 0,
   },
   otpInput: {
-    fontSize: 32, fontWeight: '800', color: COLORS.text,
-    paddingVertical: 20, letterSpacing: 16,
+    fontSize: 32, fontWeight: '800', color: COLORS.primaryDark,
+    paddingVertical: 16, letterSpacing: 12, paddingHorizontal: 16,
   },
+  otpDots: { flexDirection: 'row', justifyContent: 'center', gap: 8, paddingBottom: 12 },
+  otpDot: {
+    width: 10, height: 10, borderRadius: 5,
+    backgroundColor: COLORS.border,
+  },
+  otpDotFilled: { backgroundColor: COLORS.primary },
   btn: {
     backgroundColor: COLORS.primary, borderRadius: RADIUS.lg,
     paddingVertical: 18, alignItems: 'center', ...SHADOW.md, marginBottom: 20,
   },
-  btnDisabled: { backgroundColor: COLORS.border },
-  btnText: { color: COLORS.white, fontSize: FONT_SIZE.lg, fontWeight: '700' },
+  btnDisabled: { backgroundColor: COLORS.textMuted + '80' },
+  btnText: { color: COLORS.white, fontSize: FONT_SIZE.lg, fontWeight: '800' },
   resendRow: { alignItems: 'center', marginBottom: 24 },
-  resendLink: { color: COLORS.primary, fontSize: FONT_SIZE.base, fontWeight: '700' },
-  timerText: { fontSize: FONT_SIZE.base, color: COLORS.textMuted },
-  hintBox: {
-    padding: 16, backgroundColor: COLORS.secondaryLight,
-    borderRadius: RADIUS.md, borderLeftWidth: 3, borderLeftColor: COLORS.secondary,
+  resendBtn: {
+    paddingHorizontal: 20, paddingVertical: 10, borderRadius: RADIUS.full,
+    borderWidth: 1.5, borderColor: COLORS.primary,
   },
-  hintText: { fontSize: FONT_SIZE.sm, color: '#166534', lineHeight: 20 },
+  resendLink: { color: COLORS.primary, fontSize: FONT_SIZE.base, fontWeight: '700' },
+  timerBox: {
+    paddingHorizontal: 20, paddingVertical: 10, borderRadius: RADIUS.full,
+    backgroundColor: COLORS.primaryBg,
+  },
+  timerText: { fontSize: FONT_SIZE.base, color: COLORS.textMuted },
+  timerValue: { fontWeight: '800', color: COLORS.primaryDark },
+  hintBox: {
+    padding: 14, backgroundColor: COLORS.primaryBg,
+    borderRadius: RADIUS.md, borderLeftWidth: 3, borderLeftColor: COLORS.primary,
+    flexDirection: 'row', gap: 10, alignItems: 'flex-start',
+  },
+  hintIcon: { fontSize: 16, marginTop: 1 },
+  hintText: { flex: 1, fontSize: FONT_SIZE.sm, color: COLORS.primaryMid, lineHeight: 20 },
 });

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, View, Text } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -17,6 +17,7 @@ import HomeScreen from '../screens/HomeScreen';
 import SchemesScreen from '../screens/SchemesScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
 import ProfileScreen from '../screens/ProfileScreen';
+import AnalyticsScreen from '../screens/AnalyticsScreen';
 
 export type RootStackParamList = {
   Welcome: undefined;
@@ -33,16 +34,28 @@ export type TabParamList = {
   Home: undefined;
   Schemes: undefined;
   Notifications: undefined;
+  Analytics: undefined;
   Profile: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<TabParamList>();
 
+const TAB_ICONS: Record<string, { active: string; inactive: string }> = {
+  Home:          { active: '🏠', inactive: '🏡' },
+  Schemes:       { active: '📋', inactive: '📄' },
+  Notifications: { active: '🔔', inactive: '🔕' },
+  Analytics:     { active: '📊', inactive: '📈' },
+  Profile:       { active: '👤', inactive: '👥' },
+};
+
 function TabIcon({ name, focused }: { name: string; focused: boolean }) {
+  const icon = TAB_ICONS[name];
   return (
-    <View style={{ opacity: focused ? 1 : 0.5 }}>
-      <View />
+    <View style={{ alignItems: 'center', justifyContent: 'center', marginBottom: -2 }}>
+      <Text style={{ fontSize: 20, opacity: focused ? 1 : 0.55 }}>
+        {focused ? icon?.active : icon?.inactive}
+      </Text>
     </View>
   );
 }
@@ -52,9 +65,9 @@ function MainTabs() {
   const lang = state.lang;
 
   const tabLabels: Record<string, Record<string, string>> = {
-    en: { Home: 'Home', Schemes: 'Schemes', Notifications: 'Alerts', Profile: 'Profile' },
-    hi: { Home: 'होम', Schemes: 'योजनाएं', Notifications: 'सूचनाएं', Profile: 'प्रोफ़ाइल' },
-    mr: { Home: 'होम', Schemes: 'योजना', Notifications: 'सूचना', Profile: 'प्रोफाइल' },
+    en: { Home: 'Home', Schemes: 'Schemes', Notifications: 'Alerts', Analytics: 'Analytics', Profile: 'Profile' },
+    hi: { Home: 'होम', Schemes: 'योजनाएं', Notifications: 'सूचनाएं', Analytics: 'विश्लेषण', Profile: 'प्रोफ़ाइल' },
+    mr: { Home: 'होम', Schemes: 'योजना', Notifications: 'सूचना', Analytics: 'विश्लेषण', Profile: 'प्रोफाइल' },
   };
   const labels = tabLabels[lang] ?? tabLabels['en'];
 
@@ -67,14 +80,22 @@ function MainTabs() {
         tabBarStyle: {
           backgroundColor: COLORS.white,
           borderTopColor: COLORS.border,
-          paddingBottom: 4,
-          paddingTop: 4,
-          height: 60,
+          borderTopWidth: 1,
+          paddingBottom: 6,
+          paddingTop: 6,
+          height: 64,
+          shadowColor: '#14532D',
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: 0.08,
+          shadowRadius: 8,
+          elevation: 8,
         },
         tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: '600',
+          fontSize: 10,
+          fontWeight: '700',
+          marginTop: 2,
         },
+        tabBarActiveBackgroundColor: COLORS.primaryBg + '00',
       }}
     >
       <Tab.Screen
@@ -91,6 +112,11 @@ function MainTabs() {
         name="Notifications"
         component={NotificationsScreen}
         options={{ title: labels['Notifications'], tabBarIcon: ({ focused }) => <TabIcon name="Notifications" focused={focused} /> }}
+      />
+      <Tab.Screen
+        name="Analytics"
+        component={AnalyticsScreen}
+        options={{ title: labels['Analytics'], tabBarIcon: ({ focused }) => <TabIcon name="Analytics" focused={focused} /> }}
       />
       <Tab.Screen
         name="Profile"
@@ -120,8 +146,11 @@ export default function AppNavigator() {
 
   if (state.loading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.primaryBg }}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.primaryDark }}>
+        <View style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: COLORS.primary, alignItems: 'center', justifyContent: 'center', marginBottom: 20 }}>
+          <Text style={{ fontSize: 36 }}>🌾</Text>
+        </View>
+        <ActivityIndicator size="large" color={COLORS.gold} />
       </View>
     );
   }
@@ -148,7 +177,6 @@ export default function AppNavigator() {
         ) : (farmerStatus === 'Rejected' || farmerStatus === 'Cancelled') ? (
           <Stack.Screen name="Rejected" component={RejectedScreen} />
         ) : (
-          /* Draft, Inactive, null — stay on DocumentUpload */
           <Stack.Screen name="DocumentUpload" component={DocumentUploadScreen} />
         )}
       </Stack.Navigator>

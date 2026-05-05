@@ -59,27 +59,30 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 
 - **Type**: Expo (React Native) app running in web mode for preview
 - **Port**: 8008 (console workflow "Kisan Mitra")
-- **App name**: "Kisan Mitra" / "किसान मित्र" (Farmer Friend)
+- **App name**: "कृषी सुविधा" (Krushi Suvidha) — renamed from Kisan Mitra across all screens
 - **Tech**: Expo SDK 53, React Native 0.79.2, React Navigation v6 (stack + bottom tabs), React 19, no expo-router
-- **Colors**: Saffron/orange primary (`#F97316`), white backgrounds, green for success states
+- **Colors**: Green theme matching admin panel — primaryDark `#14532D` (headers/heroes), primary `#16A34A` (buttons/active), gold `#D97706` (brand text/accents), white cards on `#F8FAFC` background
 - **Languages**: English, Hindi (हिंदी), Marathi (मराठी) — switchable on welcome screen, saved in AsyncStorage
 - **Auth**: Mobile OTP login via `/api/auth/send-otp` + `/api/auth/verify-otp`; JWT + farmer data stored in AsyncStorage. Dev mode: OTP auto-displayed in yellow banner on OTP screen (API returns it in response).
 - **Navigation flow**:
   - No token → Welcome → Login → OTP
   - Token + no farmer / Rejected → DocumentUpload
   - Token + farmer Pending → PendingScreen (auto-polls every 30s)
-  - Token + farmer Active → Main tab navigator (Home / Schemes / Notifications / Profile)
+  - Token + farmer Active → Main tab navigator (Home / Schemes / Notifications / **Analytics** / Profile)
 - **Document upload**: 5 required documents (Aadhaar, Bank Passbook, Form 7, Form 12, Form 8A). Each card: pick file (expo-document-picker on web, expo-image-picker on native) → POST `/api/extract` with `profile_phone` → poll `/api/extract/:requestId` every 4s → marks done when `status === 'complete'`. Submit button enabled when all 5 done — fetches updated farmer record and navigates to Pending.
 - **Screens**:
-  - `WelcomeScreen` — App logo, tagline, language picker, "Get Started" CTA
-  - `LoginScreen` — 10-digit mobile number, "Send OTP" button
-  - `OtpScreen` — 6-digit OTP input, countdown timer, resend, dev OTP banner
-  - `DocumentUploadScreen` — 5 document cards with upload/processing/done states, progress bar
-  - `PendingScreen` — Timeline (Submitted → Under Review → Decision), farmer ID, docs list, auto-refresh
-  - `HomeScreen` (tab) — Welcome banner, farm summary grid, quick actions, recent notifications
-  - `SchemesScreen` (tab) — Scheme list with Central/State filter, search, Know More modal
-  - `NotificationsScreen` (tab) — Notification list, mark-as-read, pull to refresh
-  - `ProfileScreen` (tab) — Personal / Land / Bank info sections, document list, logout
+  - `WelcomeScreen` — Dark forest green hero, 🌾 logo, gold कृषी सुविधा title, language pills, green CTA
+  - `LoginScreen` — Dark green top bar with gold brand, mobile number input card, green send button
+  - `OtpScreen` — Dark green top bar, OTP input with dot indicators, dev OTP tap-to-fill banner
+  - `DocumentUploadScreen` — Progress card with segment bar, 5 doc cards with colored upload buttons, green submit
+  - `PendingScreen` — Dark green ID card, timeline stepper (primary/gold states), docs list, refresh button
+  - `RejectedScreen` — Dark green ID card, numbered steps card, help center card with helpline
+  - `VerifiedScreen` — Animated green checkmark, ID card, benefits list, auto-redirect to dashboard
+  - `HomeScreen` (tab) — Dark green hero card with avatar, farm stats grid, quick action grid, weather advisory
+  - `SchemesScreen` (tab) — Dark green top bar, tab switcher (Schemes/Insurance/Subsidies), filter chips, eligible badges
+  - `NotificationsScreen` (tab) — Dark green top bar, unread banner, colored notification cards with type icons
+  - `AnalyticsScreen` (tab) — NEW: Farm overview stats, scheme statistics, category bar chart, registration timeline, doc progress
+  - `ProfileScreen` (tab) — Dark green hero with gold farmer ID badge, color-coded section cards, green KYC badge
 - **API URL Strategy**: `getApiBase()` in `src/api.ts` — if `localhost` → `http://localhost:8000/api`; otherwise `${protocol}//${hostname}:8000/api` (works in Replit since all ports are accessible at the same hostname)
 - **Key files**: `src/api.ts`, `src/types.ts`, `src/constants.ts`, `src/context/AuthContext.tsx`, `src/navigation/AppNavigator.tsx`, `src/screens/`
 

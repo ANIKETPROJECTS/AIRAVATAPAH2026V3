@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-  View, Text, TouchableOpacity, StyleSheet, SafeAreaView, Platform,
+  View, Text, TouchableOpacity, StyleSheet, SafeAreaView,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
@@ -10,10 +10,10 @@ import { Lang } from '../types';
 
 type Props = { navigation: NativeStackNavigationProp<RootStackParamList, 'Welcome'> };
 
-const LANGS: { id: Lang; native: string; english: string }[] = [
-  { id: 'en', native: 'English', english: 'English' },
-  { id: 'hi', native: 'हिंदी', english: 'Hindi' },
-  { id: 'mr', native: 'मराठी', english: 'Marathi' },
+const LANGS: { id: Lang; native: string }[] = [
+  { id: 'en', native: 'English' },
+  { id: 'hi', native: 'हिंदी' },
+  { id: 'mr', native: 'मराठी' },
 ];
 
 export default function WelcomeScreen({ navigation }: Props) {
@@ -22,14 +22,23 @@ export default function WelcomeScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.safe}>
+      <View style={styles.topBand} />
       <View style={styles.container}>
         <View style={styles.hero}>
-          <View style={styles.logoCircle}>
-            <Text style={styles.logoEmoji}>🌾</Text>
+          <View style={styles.logoWrap}>
+            <View style={styles.logoOuter}>
+              <View style={styles.logoInner}>
+                <Text style={styles.logoEmoji}>🌾</Text>
+              </View>
+            </View>
           </View>
-          <Text style={styles.appName}>{t('appName')}</Text>
-          <Text style={styles.appNameHi}>किसान मित्र</Text>
+          <Text style={styles.appNameGold}>कृषी सुविधा</Text>
+          <Text style={styles.appNameSub}>Krushi Suvidha</Text>
+          <View style={styles.divider} />
           <Text style={styles.tagline}>{t('tagline')}</Text>
+          <View style={styles.govBadge}>
+            <Text style={styles.govBadgeText}>🏛️  Govt. of Maharashtra  •  Agriculture Dept.</Text>
+          </View>
         </View>
 
         <View style={styles.langSection}>
@@ -40,6 +49,7 @@ export default function WelcomeScreen({ navigation }: Props) {
                 key={l.id}
                 onPress={() => setLang(l.id)}
                 style={[styles.langBtn, state.lang === l.id && styles.langBtnActive]}
+                activeOpacity={0.8}
               >
                 <Text style={[styles.langBtnText, state.lang === l.id && styles.langBtnTextActive]}>
                   {l.native}
@@ -55,16 +65,15 @@ export default function WelcomeScreen({ navigation }: Props) {
             onPress={() => navigation.navigate('Login')}
             activeOpacity={0.85}
           >
-            <Text style={styles.primaryBtnText}>{t('getStarted')} →</Text>
+            <Text style={styles.primaryBtnText}>{t('getStarted')}  →</Text>
           </TouchableOpacity>
 
-          <View style={styles.badgeRow}>
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>🏛️ Govt. of Maharashtra</Text>
-            </View>
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>🔒 Secure & Verified</Text>
-            </View>
+          <View style={styles.featureRow}>
+            {['🔒 Secure', '📱 OTP Login', '🤖 AI OCR'].map((f) => (
+              <View key={f} style={styles.featureChip}>
+                <Text style={styles.featureChipText}>{f}</Text>
+              </View>
+            ))}
           </View>
         </View>
       </View>
@@ -73,38 +82,74 @@ export default function WelcomeScreen({ navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: COLORS.primaryBg },
-  container: { flex: 1, paddingHorizontal: 28, justifyContent: 'space-between', paddingVertical: 40 },
-  hero: { alignItems: 'center', flex: 1, justifyContent: 'center' },
-  logoCircle: {
-    width: 100, height: 100, borderRadius: 50,
-    backgroundColor: COLORS.primary, alignItems: 'center', justifyContent: 'center',
-    marginBottom: 20, ...SHADOW.md,
+  safe: { flex: 1, backgroundColor: COLORS.primaryDark },
+  topBand: { height: 6, backgroundColor: COLORS.gold },
+  container: {
+    flex: 1, paddingHorizontal: 28,
+    justifyContent: 'space-between', paddingVertical: 36,
+    backgroundColor: COLORS.primaryDark,
   },
-  logoEmoji: { fontSize: 48 },
-  appName: { fontSize: FONT_SIZE['3xl'], fontWeight: '800', color: COLORS.primaryDark, letterSpacing: -0.5 },
-  appNameHi: { fontSize: FONT_SIZE.xl, fontWeight: '600', color: COLORS.text, marginBottom: 12 },
-  tagline: { fontSize: FONT_SIZE.base, color: COLORS.textSecondary, textAlign: 'center', lineHeight: 22, maxWidth: 280 },
-  langSection: { marginBottom: 32 },
-  langTitle: { fontSize: FONT_SIZE.sm, fontWeight: '600', color: COLORS.textMuted, textAlign: 'center', marginBottom: 12, letterSpacing: 0.5, textTransform: 'uppercase' },
+  hero: { alignItems: 'center', flex: 1, justifyContent: 'center' },
+  logoWrap: { marginBottom: 20 },
+  logoOuter: {
+    width: 110, height: 110, borderRadius: 55,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 2, borderColor: COLORS.gold + '60',
+  },
+  logoInner: {
+    width: 84, height: 84, borderRadius: 42,
+    backgroundColor: COLORS.primary,
+    alignItems: 'center', justifyContent: 'center',
+    ...SHADOW.md,
+  },
+  logoEmoji: { fontSize: 42 },
+  appNameGold: {
+    fontSize: FONT_SIZE['3xl'], fontWeight: '800',
+    color: COLORS.gold, letterSpacing: 0.5, marginBottom: 4,
+  },
+  appNameSub: {
+    fontSize: FONT_SIZE.lg, fontWeight: '600',
+    color: 'rgba(255,255,255,0.55)', letterSpacing: 2,
+    textTransform: 'uppercase', marginBottom: 18,
+  },
+  divider: { width: 48, height: 2, backgroundColor: COLORS.gold + '80', borderRadius: 1, marginBottom: 18 },
+  tagline: {
+    fontSize: FONT_SIZE.base, color: 'rgba(255,255,255,0.75)',
+    textAlign: 'center', lineHeight: 24, maxWidth: 260, marginBottom: 20,
+  },
+  govBadge: {
+    backgroundColor: 'rgba(255,255,255,0.10)', borderRadius: RADIUS.full,
+    paddingHorizontal: 16, paddingVertical: 8,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)',
+  },
+  govBadgeText: { fontSize: FONT_SIZE.xs, color: 'rgba(255,255,255,0.7)', fontWeight: '600' },
+  langSection: { marginBottom: 28 },
+  langTitle: {
+    fontSize: FONT_SIZE.xs, fontWeight: '700', color: 'rgba(255,255,255,0.5)',
+    textAlign: 'center', marginBottom: 12, letterSpacing: 1.5, textTransform: 'uppercase',
+  },
   langRow: { flexDirection: 'row', gap: 10, justifyContent: 'center' },
   langBtn: {
-    paddingHorizontal: 20, paddingVertical: 10, borderRadius: RADIUS.full,
-    borderWidth: 1.5, borderColor: COLORS.border, backgroundColor: COLORS.white,
+    paddingHorizontal: 22, paddingVertical: 11, borderRadius: RADIUS.full,
+    borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.25)',
+    backgroundColor: 'rgba(255,255,255,0.08)',
   },
-  langBtnActive: { borderColor: COLORS.primary, backgroundColor: COLORS.primary },
-  langBtnText: { fontSize: FONT_SIZE.base, fontWeight: '600', color: COLORS.text },
-  langBtnTextActive: { color: COLORS.white },
+  langBtnActive: { borderColor: COLORS.gold, backgroundColor: COLORS.gold + '22' },
+  langBtnText: { fontSize: FONT_SIZE.base, fontWeight: '600', color: 'rgba(255,255,255,0.7)' },
+  langBtnTextActive: { color: COLORS.gold, fontWeight: '800' },
   footer: { gap: 16 },
   primaryBtn: {
     backgroundColor: COLORS.primary, borderRadius: RADIUS.lg,
     paddingVertical: 18, alignItems: 'center', ...SHADOW.md,
+    borderWidth: 1, borderColor: COLORS.primaryLight + '40',
   },
-  primaryBtnText: { color: COLORS.white, fontSize: FONT_SIZE.lg, fontWeight: '700' },
-  badgeRow: { flexDirection: 'row', gap: 10, justifyContent: 'center' },
-  badge: {
-    paddingHorizontal: 12, paddingVertical: 6, borderRadius: RADIUS.full,
-    backgroundColor: COLORS.white, borderWidth: 1, borderColor: COLORS.border,
+  primaryBtnText: { color: COLORS.white, fontSize: FONT_SIZE.lg, fontWeight: '800', letterSpacing: 0.5 },
+  featureRow: { flexDirection: 'row', gap: 8, justifyContent: 'center' },
+  featureChip: {
+    paddingHorizontal: 12, paddingVertical: 6,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: RADIUS.full, borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)',
   },
-  badgeText: { fontSize: FONT_SIZE.xs, color: COLORS.textSecondary, fontWeight: '500' },
+  featureChipText: { fontSize: FONT_SIZE.xs, color: 'rgba(255,255,255,0.6)', fontWeight: '500' },
 });

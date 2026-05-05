@@ -33,9 +33,11 @@ function notifIcon(type: string): string {
 
 function notifColor(type: string): string {
   switch (type) {
-    case 'approval': return COLORS.secondary;
+    case 'approval': return COLORS.primary;
     case 'rejection': return COLORS.error;
-    default: return COLORS.info;
+    case 'scheme': return COLORS.info;
+    case 'subsidy': return '#7C3AED';
+    default: return COLORS.gold;
   }
 }
 
@@ -51,7 +53,7 @@ export default function NotificationsScreen() {
     try {
       const data = await api.getNotifications(state.mobile);
       setNotifs(data);
-    } catch { /* ignore */ }
+    } catch {}
   }, [state.mobile]);
 
   useEffect(() => {
@@ -68,7 +70,7 @@ export default function NotificationsScreen() {
     try {
       await api.markNotificationRead(id);
       setNotifs((prev) => prev.map((n) => n.notificationId === id ? { ...n, read: true } : n));
-    } catch { /* ignore */ }
+    } catch {}
   }
 
   async function markAllRead() {
@@ -76,7 +78,7 @@ export default function NotificationsScreen() {
     try {
       await api.markAllRead(state.mobile);
       setNotifs((prev) => prev.map((n) => ({ ...n, read: true })));
-    } catch { /* ignore */ }
+    } catch {}
   }
 
   const unreadCount = notifs.filter((n) => !n.read).length;
@@ -84,6 +86,9 @@ export default function NotificationsScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.safe}>
+        <View style={styles.topBar}>
+          <Text style={styles.topBarTitle}>कृषी सुविधा</Text>
+        </View>
         <View style={styles.center}>
           <ActivityIndicator size="large" color={COLORS.primary} />
         </View>
@@ -93,27 +98,32 @@ export default function NotificationsScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <View style={styles.header}>
-        <View style={styles.headerTop}>
-          <View>
-            <Text style={styles.headerTitle}>{t('notifications')}</Text>
-            {unreadCount > 0 && (
-              <Text style={styles.unreadCount}>{unreadCount} unread</Text>
-            )}
-          </View>
-          {unreadCount > 0 && (
-            <TouchableOpacity style={styles.markAllBtn} onPress={markAllRead}>
-              <Text style={styles.markAllText}>{t('markAllRead')}</Text>
-            </TouchableOpacity>
-          )}
+      <View style={styles.topBar}>
+        <View>
+          <Text style={styles.topBarTitle}>कृषी सुविधा</Text>
+          <Text style={styles.topBarSub}>{t('notifications')}</Text>
         </View>
+        {unreadCount > 0 && (
+          <TouchableOpacity style={styles.markAllBtn} onPress={markAllRead}>
+            <Text style={styles.markAllText}>{t('markAllRead')}</Text>
+          </TouchableOpacity>
+        )}
       </View>
+
+      {unreadCount > 0 && (
+        <View style={styles.unreadBanner}>
+          <View style={styles.unreadDotLarge} />
+          <Text style={styles.unreadBannerText}>{unreadCount} unread notification{unreadCount > 1 ? 's' : ''}</Text>
+        </View>
+      )}
 
       {notifs.length === 0 ? (
         <View style={styles.center}>
-          <Text style={styles.emptyIcon}>🔕</Text>
+          <View style={styles.emptyIconBox}>
+            <Text style={styles.emptyIcon}>🔕</Text>
+          </View>
           <Text style={styles.emptyTitle}>{t('noNotifications')}</Text>
-          <Text style={styles.emptySub}>You'll receive updates when the admin takes action on your registration.</Text>
+          <Text style={styles.emptySub}>You'll receive updates here when the admin takes action on your registration.</Text>
         </View>
       ) : (
         <FlatList
@@ -121,26 +131,38 @@ export default function NotificationsScreen() {
           keyExtractor={(item) => item.notificationId}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={[styles.notifCard, !item.read && styles.notifCardUnread]}
-              onPress={() => !item.read && markRead(item.notificationId)}
-              activeOpacity={0.85}
-            >
-              <View style={[styles.iconBox, { backgroundColor: notifColor(item.type) + '20' }]}>
-                <Text style={styles.icon}>{notifIcon(item.type)}</Text>
-              </View>
-              <View style={styles.notifContent}>
-                <View style={styles.notifTopRow}>
-                  <Text style={styles.notifTitle} numberOfLines={1}>{item.title}</Text>
-                  {!item.read && <View style={styles.unreadDot} />}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} colors={[COLORS.primary]} />
+          }
+          renderItem={({ item }) => {
+            const color = notifColor(item.type);
+            return (
+              <TouchableOpacity
+                style={[styles.notifCard, !item.read && styles.notifCardUnread]}
+                onPress={() => !item.read && markRead(item.notificationId)}
+                activeOpacity={0.85}
+              >
+                <View style={[styles.iconBox, { backgroundColor: color + '18' }]}>
+                  <Text style={styles.icon}>{notifIcon(item.type)}</Text>
                 </View>
-                <Text style={styles.notifBody} numberOfLines={3}>{item.body}</Text>
-                <Text style={styles.notifTime}>{timeAgo(item.createdAt)}</Text>
-              </View>
-            </TouchableOpacity>
-          )}
+                <View style={styles.notifContent}>
+                  <View style={styles.notifTopRow}>
+                    <Text style={styles.notifTitle} numberOfLines={1}>{item.title}</Text>
+                    {!item.read && <View style={[styles.unreadDot, { backgroundColor: color }]} />}
+                  </View>
+                  <Text style={styles.notifBody} numberOfLines={3}>{item.body}</Text>
+                  <View style={styles.notifFooter}>
+                    <Text style={styles.notifTime}>{timeAgo(item.createdAt)}</Text>
+                    {!item.read && (
+                      <View style={[styles.tapToRead, { borderColor: color }]}>
+                        <Text style={[styles.tapToReadText, { color }]}>Tap to mark read</Text>
+                      </View>
+                    )}
+                  </View>
+                </View>
+              </TouchableOpacity>
+            );
+          }}
         />
       )}
     </SafeAreaView>
@@ -149,35 +171,49 @@ export default function NotificationsScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: COLORS.background },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12, padding: 32 },
-  emptyIcon: { fontSize: 64 },
-  emptyTitle: { fontSize: FONT_SIZE.lg, fontWeight: '700', color: COLORS.textSecondary },
-  emptySub: { fontSize: FONT_SIZE.sm, color: COLORS.textMuted, textAlign: 'center', lineHeight: 20 },
-  header: {
-    backgroundColor: COLORS.white, paddingHorizontal: 16, paddingTop: 16,
-    paddingBottom: 16, ...SHADOW.sm,
+  topBar: {
+    backgroundColor: COLORS.primaryDark, paddingHorizontal: 20, paddingVertical: 14,
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
   },
-  headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  headerTitle: { fontSize: FONT_SIZE.xl, fontWeight: '800', color: COLORS.text },
-  unreadCount: { fontSize: FONT_SIZE.sm, color: COLORS.primary, fontWeight: '600', marginTop: 2 },
+  topBarTitle: { fontSize: FONT_SIZE.base, fontWeight: '800', color: COLORS.gold },
+  topBarSub: { fontSize: FONT_SIZE.xs, color: 'rgba(255,255,255,0.6)', marginTop: 2 },
   markAllBtn: {
-    paddingHorizontal: 14, paddingVertical: 8, borderRadius: RADIUS.full,
-    backgroundColor: COLORS.primaryBg, borderWidth: 1, borderColor: COLORS.primary,
+    paddingHorizontal: 12, paddingVertical: 7, borderRadius: RADIUS.full,
+    backgroundColor: 'rgba(255,255,255,0.12)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)',
   },
-  markAllText: { fontSize: FONT_SIZE.sm, fontWeight: '700', color: COLORS.primary },
+  markAllText: { fontSize: FONT_SIZE.xs, fontWeight: '700', color: 'rgba(255,255,255,0.85)' },
+  unreadBanner: {
+    backgroundColor: COLORS.primaryBg, paddingHorizontal: 16, paddingVertical: 10,
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    borderBottomWidth: 1, borderBottomColor: COLORS.border,
+  },
+  unreadDotLarge: { width: 10, height: 10, borderRadius: 5, backgroundColor: COLORS.primary },
+  unreadBannerText: { fontSize: FONT_SIZE.sm, color: COLORS.primaryDark, fontWeight: '700' },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 16, padding: 32 },
+  emptyIconBox: {
+    width: 88, height: 88, borderRadius: 44,
+    backgroundColor: COLORS.primaryBg, alignItems: 'center', justifyContent: 'center',
+    borderWidth: 2, borderColor: COLORS.primaryLight,
+  },
+  emptyIcon: { fontSize: 44 },
+  emptyTitle: { fontSize: FONT_SIZE.lg, fontWeight: '700', color: COLORS.textSecondary },
+  emptySub: { fontSize: FONT_SIZE.sm, color: COLORS.textMuted, textAlign: 'center', lineHeight: 20, maxWidth: 280 },
   list: { padding: 16, gap: 10 },
   notifCard: {
     backgroundColor: COLORS.white, borderRadius: RADIUS.lg, padding: 14,
     flexDirection: 'row', gap: 12, alignItems: 'flex-start', ...SHADOW.sm,
     borderWidth: 1, borderColor: COLORS.border,
   },
-  notifCardUnread: { borderLeftWidth: 4, borderLeftColor: COLORS.primary, borderColor: COLORS.border },
-  iconBox: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  notifCardUnread: { borderLeftWidth: 4, borderLeftColor: COLORS.primary },
+  iconBox: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center' },
   icon: { fontSize: 22 },
   notifContent: { flex: 1 },
   notifTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
-  notifTitle: { flex: 1, fontSize: FONT_SIZE.sm, fontWeight: '700', color: COLORS.text },
-  unreadDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: COLORS.primary, marginLeft: 8 },
-  notifBody: { fontSize: FONT_SIZE.sm, color: COLORS.textSecondary, lineHeight: 18, marginBottom: 6 },
+  notifTitle: { flex: 1, fontSize: FONT_SIZE.base, fontWeight: '700', color: COLORS.text },
+  unreadDot: { width: 9, height: 9, borderRadius: 5, marginLeft: 8 },
+  notifBody: { fontSize: FONT_SIZE.sm, color: COLORS.textSecondary, lineHeight: 18, marginBottom: 8 },
+  notifFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   notifTime: { fontSize: FONT_SIZE.xs, color: COLORS.textMuted },
+  tapToRead: { borderWidth: 1, borderRadius: RADIUS.full, paddingHorizontal: 8, paddingVertical: 3 },
+  tapToReadText: { fontSize: 10, fontWeight: '700' },
 });

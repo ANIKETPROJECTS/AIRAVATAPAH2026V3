@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Kisan Mitra",
+    "name": "कृषी सुविधा",
     "slug": "kisan-mitra",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -8,18 +8,18 @@
     "userInterfaceStyle": "light",
     "splash": {
       "resizeMode": "contain",
-      "backgroundColor": "#F97316"
+      "backgroundColor": "#14532D"
     },
     "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.agrimh.kisanmitra"
+      "bundleIdentifier": "com.agrimh.krishisuvidha"
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#F97316"
+        "backgroundColor": "#14532D"
       },
-      "package": "com.agrimh.kisanmitra"
+      "package": "com.agrimh.krishisuvidha"
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -29,8 +29,8 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Allow Kisan Mitra to access your photos to upload documents.",
-          "cameraPermission": "Allow Kisan Mitra to use your camera to capture documents."
+          "photosPermission": "Allow कृषी सुविधा to access your photos to upload documents.",
+          "cameraPermission": "Allow कृषी सुविधा to use your camera to capture documents."
         }
       ]
     ]

@@ -67,9 +67,7 @@ export default function DocumentUploadScreen() {
 
   async function pickAndUpload(docId: DocumentTypeId) {
     if (!mobile) { Alert.alert('Error', 'Session expired. Please login again.'); return; }
-
     setDoc(docId, { status: 'picking', error: undefined });
-
     try {
       let fileUri = '';
       let fileName = `${docId}.pdf`;
@@ -80,10 +78,7 @@ export default function DocumentUploadScreen() {
           type: ['image/*', 'application/pdf'],
           copyToCacheDirectory: false,
         });
-        if (result.canceled || !result.assets?.[0]) {
-          setDoc(docId, { status: 'idle' });
-          return;
-        }
+        if (result.canceled || !result.assets?.[0]) { setDoc(docId, { status: 'idle' }); return; }
         const asset = result.assets[0];
         fileUri = asset.uri;
         fileName = asset.name ?? fileName;
@@ -100,10 +95,7 @@ export default function DocumentUploadScreen() {
           quality: 0.85,
           allowsMultipleSelection: false,
         });
-        if (result.canceled || !result.assets?.[0]) {
-          setDoc(docId, { status: 'idle' });
-          return;
-        }
+        if (result.canceled || !result.assets?.[0]) { setDoc(docId, { status: 'idle' }); return; }
         const asset = result.assets[0];
         fileUri = asset.uri;
         fileName = `${docId}.jpg`;
@@ -111,12 +103,9 @@ export default function DocumentUploadScreen() {
       }
 
       setDoc(docId, { status: 'uploading', fileName });
-
       const submitResult = await api.uploadDocument(fileUri, fileName, fileMime, docId, mobile);
       const requestId = submitResult.request_id;
-
       setDoc(docId, { status: 'processing', requestId });
-
       pollUntilDone(docId, requestId);
     } catch (err) {
       setDoc(docId, {
@@ -147,34 +136,58 @@ export default function DocumentUploadScreen() {
 
   function statusInfo(s: DocUploadStatus): { label: string; color: string; bg: string } {
     switch (s) {
-      case 'done': return { label: t('uploaded'), color: COLORS.secondary, bg: COLORS.secondaryLight };
+      case 'done': return { label: t('uploaded'), color: COLORS.primary, bg: COLORS.primaryBg };
       case 'uploading': return { label: 'Uploading…', color: COLORS.info, bg: COLORS.infoLight };
-      case 'processing': return { label: t('processing'), color: COLORS.warning, bg: COLORS.warningLight };
+      case 'processing': return { label: t('processing'), color: COLORS.gold, bg: COLORS.goldLight };
       case 'error': return { label: t('failed'), color: COLORS.error, bg: COLORS.errorLight };
       case 'picking': return { label: 'Selecting…', color: COLORS.textMuted, bg: COLORS.borderLight };
-      default: return { label: 'Not uploaded', color: COLORS.textMuted, bg: COLORS.borderLight };
+      default: return { label: 'Not uploaded', color: COLORS.textMuted, bg: '#F1F5F9' };
     }
   }
 
   const docLabel = (d: typeof REQUIRED_DOCUMENTS[0]) =>
     state.lang === 'hi' ? d.labelHi : state.lang === 'mr' ? d.labelMr : d.label;
 
+  const pct = (doneCount / REQUIRED_DOCUMENTS.length) * 100;
+
   return (
     <SafeAreaView style={styles.safe}>
+      <View style={styles.topBar}>
+        <View>
+          <Text style={styles.topBarTitle}>कृषी सुविधा</Text>
+          <Text style={styles.topBarSub}>Farmer Registration</Text>
+        </View>
+        <TouchableOpacity style={styles.logoutTopBtn} onPress={handleLogout}>
+          <Text style={styles.logoutTopText}>Logout</Text>
+        </TouchableOpacity>
+      </View>
+
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <View style={styles.heroBox}>
-          <Text style={styles.heroIcon}>📑</Text>
-          <Text style={styles.heroTitle}>{t('registerTitle')}</Text>
-          <Text style={styles.heroSub}>{t('registerSubtitle')}</Text>
+          <View style={styles.heroIconBox}>
+            <Text style={styles.heroIcon}>📑</Text>
+          </View>
+          <View style={styles.heroText}>
+            <Text style={styles.heroTitle}>{t('registerTitle')}</Text>
+            <Text style={styles.heroSub}>{t('registerSubtitle')}</Text>
+          </View>
         </View>
 
         <View style={styles.progressCard}>
           <View style={styles.progressRow}>
             <Text style={styles.progressLabel}>{t('uploadDocs')}</Text>
-            <Text style={styles.progressCount}>{doneCount} / {REQUIRED_DOCUMENTS.length}</Text>
+            <Text style={styles.progressCount}>{doneCount}<Text style={styles.progressTotal}> / {REQUIRED_DOCUMENTS.length}</Text></Text>
           </View>
-          <View style={styles.progressBar}>
-            <View style={[styles.progressFill, { width: `${(doneCount / REQUIRED_DOCUMENTS.length) * 100}%` as any }]} />
+          <View style={styles.progressTrack}>
+            <View style={[styles.progressFill, { width: `${pct}%` as any }]} />
+          </View>
+          <View style={styles.progressSegments}>
+            {REQUIRED_DOCUMENTS.map((d, i) => (
+              <View key={d.id} style={[
+                styles.progressSegment,
+                i < doneCount ? styles.progressSegmentDone : {}
+              ]} />
+            ))}
           </View>
         </View>
 
@@ -187,18 +200,18 @@ export default function DocumentUploadScreen() {
 
             return (
               <View key={doc.id} style={[styles.docCard, isDone && styles.docCardDone]}>
-                <View style={styles.docCardLeft}>
+                <View style={[styles.docIconBox, { backgroundColor: isDone ? COLORS.primaryBg : '#F8FAFC', borderColor: isDone ? COLORS.primaryLight : COLORS.border }]}>
                   <Text style={styles.docIcon}>{doc.icon}</Text>
-                  <View style={styles.docInfo}>
-                    <Text style={styles.docName}>{docLabel(doc)}</Text>
-                    <Text style={styles.docDesc} numberOfLines={2}>{doc.description}</Text>
-                    <View style={[styles.statusChip, { backgroundColor: si.bg }]}>
-                      <Text style={[styles.statusChipText, { color: si.color }]}>{si.label}</Text>
-                    </View>
-                    {ds.status === 'error' && ds.error && (
-                      <Text style={styles.errorText}>{ds.error}</Text>
-                    )}
+                </View>
+                <View style={styles.docInfo}>
+                  <Text style={styles.docName}>{docLabel(doc)}</Text>
+                  <Text style={styles.docDesc} numberOfLines={1}>{doc.description}</Text>
+                  <View style={[styles.statusChip, { backgroundColor: si.bg }]}>
+                    <Text style={[styles.statusChipText, { color: si.color }]}>{si.label}</Text>
                   </View>
+                  {ds.status === 'error' && ds.error && (
+                    <Text style={styles.errorText}>{ds.error}</Text>
+                  )}
                 </View>
                 <TouchableOpacity
                   style={[
@@ -208,17 +221,17 @@ export default function DocumentUploadScreen() {
                   ]}
                   onPress={() => pickAndUpload(doc.id)}
                   disabled={isBusy}
+                  activeOpacity={0.8}
                 >
                   {isBusy
                     ? <ActivityIndicator size="small" color={COLORS.white} />
-                    : <Text style={styles.uploadBtnText}>
-                        {isDone ? '↩' : ds.status === 'error' ? '↻' : '↑'}
-                        {'\n'}
-                        <Text style={styles.uploadBtnLabel}>
-                          {isDone ? t('reUpload') : t('uploadDoc')}
-                        </Text>
+                    : <Text style={styles.uploadBtnIcon}>
+                        {isDone ? '✓' : ds.status === 'error' ? '↻' : '↑'}
                       </Text>
                   }
+                  <Text style={styles.uploadBtnLabel}>
+                    {isBusy ? '...' : isDone ? t('reUpload') : t('uploadDoc')}
+                  </Text>
                 </TouchableOpacity>
               </View>
             );
@@ -227,8 +240,9 @@ export default function DocumentUploadScreen() {
 
         {!allDone && (
           <View style={styles.tipBox}>
+            <Text style={styles.tipIcon}>📌</Text>
             <Text style={styles.tipText}>
-              📌 Upload all 5 documents to complete registration. Accepted formats: JPG, PNG, PDF.
+              Upload all 5 documents to complete registration. Accepted formats: JPG, PNG, PDF.
             </Text>
           </View>
         )}
@@ -237,14 +251,13 @@ export default function DocumentUploadScreen() {
           style={[styles.submitBtn, (!allDone || submitting) && styles.submitBtnDisabled]}
           onPress={handleSubmit}
           disabled={!allDone || submitting}
+          activeOpacity={0.85}
         >
           {submitting
             ? <ActivityIndicator color={COLORS.white} />
-            : <Text style={styles.submitBtnText}>{allDone ? t('submitReg') : `Upload all documents to continue`}</Text>}
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
-          <Text style={styles.logoutBtnText}>🚪 {t('logout')}</Text>
+            : <Text style={styles.submitBtnText}>
+                {allDone ? `✅  ${t('submitReg')}` : `Upload all ${REQUIRED_DOCUMENTS.length - doneCount} remaining documents`}
+              </Text>}
         </TouchableOpacity>
 
         <View style={{ height: 40 }} />
@@ -255,54 +268,87 @@ export default function DocumentUploadScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: COLORS.background },
-  scroll: { paddingHorizontal: 20, paddingTop: 48, paddingBottom: 20 },
-  heroBox: { alignItems: 'center', marginBottom: 24 },
-  heroIcon: { fontSize: 48, marginBottom: 12 },
-  heroTitle: { fontSize: FONT_SIZE['2xl'], fontWeight: '800', color: COLORS.text, marginBottom: 8 },
-  heroSub: { fontSize: FONT_SIZE.sm, color: COLORS.textSecondary, textAlign: 'center', lineHeight: 20, maxWidth: 300 },
+  topBar: {
+    backgroundColor: COLORS.primaryDark, paddingHorizontal: 20, paddingVertical: 14,
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+  },
+  topBarTitle: { fontSize: FONT_SIZE.base, fontWeight: '800', color: COLORS.gold },
+  topBarSub: { fontSize: FONT_SIZE.xs, color: 'rgba(255,255,255,0.6)', marginTop: 2 },
+  logoutTopBtn: {
+    paddingHorizontal: 14, paddingVertical: 7,
+    borderRadius: RADIUS.full, borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)',
+  },
+  logoutTopText: { color: 'rgba(255,255,255,0.8)', fontSize: FONT_SIZE.sm, fontWeight: '600' },
+  scroll: { paddingHorizontal: 18, paddingTop: 20, paddingBottom: 20 },
+  heroBox: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 14,
+    backgroundColor: COLORS.white, borderRadius: RADIUS.lg, padding: 16,
+    marginBottom: 16, ...SHADOW.sm,
+  },
+  heroIconBox: {
+    width: 52, height: 52, borderRadius: 26,
+    backgroundColor: COLORS.primaryBg, alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1.5, borderColor: COLORS.primaryLight,
+  },
+  heroIcon: { fontSize: 26 },
+  heroText: { flex: 1 },
+  heroTitle: { fontSize: FONT_SIZE.lg, fontWeight: '800', color: COLORS.primaryDark, marginBottom: 4 },
+  heroSub: { fontSize: FONT_SIZE.sm, color: COLORS.textSecondary, lineHeight: 20 },
   progressCard: {
     backgroundColor: COLORS.white, borderRadius: RADIUS.lg, padding: 16,
     marginBottom: 20, ...SHADOW.sm,
   },
-  progressRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
-  progressLabel: { fontSize: FONT_SIZE.base, fontWeight: '600', color: COLORS.text },
-  progressCount: { fontSize: FONT_SIZE.lg, fontWeight: '800', color: COLORS.primary },
-  progressBar: { height: 8, borderRadius: RADIUS.full, backgroundColor: COLORS.border, overflow: 'hidden' },
+  progressRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 },
+  progressLabel: { fontSize: FONT_SIZE.sm, fontWeight: '700', color: COLORS.text },
+  progressCount: { fontSize: FONT_SIZE['2xl'], fontWeight: '800', color: COLORS.primary },
+  progressTotal: { fontSize: FONT_SIZE.base, color: COLORS.textMuted },
+  progressTrack: { height: 6, borderRadius: RADIUS.full, backgroundColor: COLORS.border, overflow: 'hidden', marginBottom: 8 },
   progressFill: { height: '100%', borderRadius: RADIUS.full, backgroundColor: COLORS.primary },
-  docList: { gap: 12, marginBottom: 20 },
+  progressSegments: { flexDirection: 'row', gap: 6 },
+  progressSegment: {
+    flex: 1, height: 4, borderRadius: 2, backgroundColor: COLORS.border,
+  },
+  progressSegmentDone: { backgroundColor: COLORS.primary },
+  docList: { gap: 12, marginBottom: 16 },
   docCard: {
-    backgroundColor: COLORS.white, borderRadius: RADIUS.lg, padding: 16,
-    flexDirection: 'row', alignItems: 'flex-start', ...SHADOW.sm,
+    backgroundColor: COLORS.white, borderRadius: RADIUS.lg, padding: 14,
+    flexDirection: 'row', alignItems: 'center', gap: 12, ...SHADOW.sm,
     borderWidth: 1.5, borderColor: COLORS.border,
   },
-  docCardDone: { borderColor: COLORS.secondary },
-  docCardLeft: { flex: 1, flexDirection: 'row', gap: 12 },
-  docIcon: { fontSize: 28, marginTop: 2 },
+  docCardDone: { borderColor: COLORS.primary },
+  docIconBox: {
+    width: 48, height: 48, borderRadius: 12,
+    alignItems: 'center', justifyContent: 'center', borderWidth: 1.5,
+  },
+  docIcon: { fontSize: 24 },
   docInfo: { flex: 1, gap: 4 },
   docName: { fontSize: FONT_SIZE.base, fontWeight: '700', color: COLORS.text },
-  docDesc: { fontSize: FONT_SIZE.xs, color: COLORS.textMuted, lineHeight: 16 },
-  statusChip: { alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 3, borderRadius: RADIUS.full, marginTop: 4 },
+  docDesc: { fontSize: FONT_SIZE.xs, color: COLORS.textMuted },
+  statusChip: {
+    alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 3,
+    borderRadius: RADIUS.full, marginTop: 2,
+  },
   statusChipText: { fontSize: FONT_SIZE.xs, fontWeight: '700' },
   errorText: { fontSize: FONT_SIZE.xs, color: COLORS.error, marginTop: 2 },
   uploadBtn: {
-    backgroundColor: COLORS.primary, borderRadius: RADIUS.md, paddingHorizontal: 14,
-    paddingVertical: 10, alignItems: 'center', minWidth: 72, marginLeft: 8, marginTop: 2,
+    backgroundColor: COLORS.primary, borderRadius: RADIUS.md,
+    paddingHorizontal: 12, paddingVertical: 10, alignItems: 'center', minWidth: 64, gap: 2,
   },
-  uploadBtnDone: { backgroundColor: COLORS.secondary },
-  uploadBtnBusy: { backgroundColor: COLORS.warning },
-  uploadBtnText: { color: COLORS.white, fontSize: 18, textAlign: 'center', lineHeight: 22 },
-  uploadBtnLabel: { fontSize: FONT_SIZE.xs, fontWeight: '700' },
+  uploadBtnDone: { backgroundColor: COLORS.primaryMid },
+  uploadBtnBusy: { backgroundColor: COLORS.gold },
+  uploadBtnIcon: { color: COLORS.white, fontSize: FONT_SIZE.lg, fontWeight: '800' },
+  uploadBtnLabel: { color: COLORS.white, fontSize: 10, fontWeight: '700' },
   tipBox: {
     padding: 14, backgroundColor: COLORS.primaryBg, borderRadius: RADIUS.md,
     borderLeftWidth: 3, borderLeftColor: COLORS.primary, marginBottom: 16,
+    flexDirection: 'row', gap: 10, alignItems: 'flex-start',
   },
-  tipText: { fontSize: FONT_SIZE.sm, color: COLORS.primaryDark, lineHeight: 20 },
+  tipIcon: { fontSize: 16 },
+  tipText: { flex: 1, fontSize: FONT_SIZE.sm, color: COLORS.primaryMid, lineHeight: 20 },
   submitBtn: {
     backgroundColor: COLORS.primary, borderRadius: RADIUS.lg,
-    paddingVertical: 18, alignItems: 'center', ...SHADOW.md, marginTop: 8,
+    paddingVertical: 18, alignItems: 'center', ...SHADOW.md,
   },
-  submitBtnDisabled: { backgroundColor: COLORS.border },
-  submitBtnText: { color: COLORS.white, fontSize: FONT_SIZE.base, fontWeight: '700' },
-  logoutBtn: { paddingVertical: 16, alignItems: 'center', marginTop: 4 },
-  logoutBtnText: { color: COLORS.error, fontSize: FONT_SIZE.base, fontWeight: '600' },
+  submitBtnDisabled: { backgroundColor: COLORS.textMuted + '60' },
+  submitBtnText: { color: COLORS.white, fontSize: FONT_SIZE.base, fontWeight: '800' },
 });

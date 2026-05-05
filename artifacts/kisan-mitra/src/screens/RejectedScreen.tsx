@@ -25,11 +25,19 @@ export default function RejectedScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+      <View style={styles.topBar}>
+        <View>
+          <Text style={styles.topBarTitle}>कृषी सुविधा</Text>
+          <Text style={styles.topBarSub}>Application Status</Text>
+        </View>
+      </View>
 
-        <View style={styles.header}>
-          <View style={styles.iconCircle}>
-            <Text style={styles.iconEmoji}>❌</Text>
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        <View style={styles.statusHero}>
+          <View style={styles.statusIconRing}>
+            <View style={styles.statusIconInner}>
+              <Text style={styles.statusEmoji}>❌</Text>
+            </View>
           </View>
           <Text style={styles.title}>
             {state.lang === 'hi' ? 'आवेदन अस्वीकृत' : state.lang === 'mr' ? 'अर्ज नाकारला' : 'Application Rejected'}
@@ -45,67 +53,74 @@ export default function RejectedScreen() {
 
         {!!farmer?.farmerId && (
           <View style={styles.idCard}>
-            <Text style={styles.idLabel}>{t('farmerId')}</Text>
-            <Text style={styles.idValue}>{farmer.farmerId}</Text>
-            <Text style={styles.idMobile}>+91 {state.mobile}</Text>
+            <View>
+              <Text style={styles.idLabel}>{t('farmerId')}</Text>
+              <Text style={styles.idValue}>{farmer.farmerId}</Text>
+              <Text style={styles.idMobile}>+91 {state.mobile}</Text>
+            </View>
+            <View style={styles.idIconBox}>
+              <Text style={styles.idIcon}>🪪</Text>
+            </View>
           </View>
         )}
 
-        <View style={styles.infoCard}>
-          <Text style={styles.infoTitle}>
-            {state.lang === 'hi' ? 'अगले कदम' : state.lang === 'mr' ? 'पुढील पायऱ्या' : 'What to do next'}
+        <View style={styles.stepsCard}>
+          <Text style={styles.cardTitle}>
+            {state.lang === 'hi' ? '📋 अगले कदम' : state.lang === 'mr' ? '📋 पुढील पायऱ्या' : '📋 What to do next'}
           </Text>
-          <View style={styles.stepList}>
-            <View style={styles.stepRow}>
-              <Text style={styles.stepNum}>1</Text>
-              <Text style={styles.stepText}>
-                {state.lang === 'hi'
-                  ? 'अपने नजदीकी कृषि कार्यालय से संपर्क करें और अस्वीकृति का कारण जानें।'
-                  : state.lang === 'mr'
-                  ? 'तुमच्या जवळच्या कृषी कार्यालयाशी संपर्क साधा आणि नाकारण्याचे कारण जाणून घ्या.'
-                  : 'Visit your nearest Agriculture Office to learn the reason for rejection.'}
-              </Text>
+          {[
+            state.lang === 'hi'
+              ? 'अपने नजदीकी कृषि कार्यालय से संपर्क करें और अस्वीकृति का कारण जानें।'
+              : state.lang === 'mr'
+              ? 'तुमच्या जवळच्या कृषी कार्यालयाशी संपर्क साधा आणि नाकारण्याचे कारण जाणून घ्या.'
+              : 'Visit your nearest Agriculture Office to learn the reason for rejection.',
+            state.lang === 'hi'
+              ? 'अपने दस्तावेज़ सही करके नए मोबाइल नंबर से पुनः पंजीकरण करें।'
+              : state.lang === 'mr'
+              ? 'तुमचे कागदपत्र दुरुस्त करा आणि नव्या मोबाइल नंबरने पुन्हा नोंदणी करा.'
+              : 'Correct your documents and re-register with a new mobile number.',
+            state.lang === 'hi'
+              ? 'किसी समस्या के लिए कृषि विभाग हेल्पलाइन से संपर्क करें।'
+              : state.lang === 'mr'
+              ? 'मदतीसाठी कृषी विभाग हेल्पलाइनशी संपर्क करा.'
+              : 'For help, contact the Agriculture Dept. helpline below.',
+          ].map((text, i) => (
+            <View key={i} style={styles.stepRow}>
+              <View style={styles.stepNum}>
+                <Text style={styles.stepNumText}>{i + 1}</Text>
+              </View>
+              <Text style={styles.stepText}>{text}</Text>
             </View>
-            <View style={styles.stepRow}>
-              <Text style={styles.stepNum}>2</Text>
-              <Text style={styles.stepText}>
-                {state.lang === 'hi'
-                  ? 'अपने दस्तावेज़ सही करके नए मोबाइल नंबर से पुनः पंजीकरण करें।'
-                  : state.lang === 'mr'
-                  ? 'तुमचे कागदपत्र दुरुस्त करा आणि नव्या मोबाइल नंबरने पुन्हा नोंदणी करा.'
-                  : 'Correct your documents and re-register with a new mobile number.'}
-              </Text>
-            </View>
-            <View style={styles.stepRow}>
-              <Text style={styles.stepNum}>3</Text>
-              <Text style={styles.stepText}>
-                {state.lang === 'hi'
-                  ? 'किसी समस्या के लिए कृषि विभाग हेल्पलाइन: 1800-233-4000'
-                  : state.lang === 'mr'
-                  ? 'मदतीसाठी कृषी विभाग हेल्पलाइन: 1800-233-4000'
-                  : 'For help, contact Agriculture Dept. Helpline: 1800-233-4000'}
-              </Text>
-            </View>
-          </View>
+          ))}
         </View>
 
         <View style={styles.helpCard}>
-          <Text style={styles.helpTitle}>📞 {state.lang === 'hi' ? 'सहायता केंद्र' : state.lang === 'mr' ? 'मदत केंद्र' : 'Help Center'}</Text>
-          <Text style={styles.helpText}>
-            {state.lang === 'hi'
-              ? 'महाराष्ट्र कृषि विभाग — जिला कार्यालय'
-              : state.lang === 'mr'
-              ? 'महाराष्ट्र कृषी विभाग — जिल्हा कार्यालय'
-              : 'Maharashtra Agriculture Dept. — District Office'}
-          </Text>
-          <Text style={styles.helpPhone}>1800-233-4000</Text>
+          <View style={styles.helpHeader}>
+            <View style={styles.helpIconBox}>
+              <Text style={styles.helpIcon}>📞</Text>
+            </View>
+            <View>
+              <Text style={styles.helpTitle}>
+                {state.lang === 'hi' ? 'सहायता केंद्र' : state.lang === 'mr' ? 'मदत केंद्र' : 'Help Center'}
+              </Text>
+              <Text style={styles.helpOrg}>
+                {state.lang === 'hi' ? 'महाराष्ट्र कृषि विभाग' : state.lang === 'mr' ? 'महाराष्ट्र कृषी विभाग' : 'Maharashtra Agriculture Dept.'}
+              </Text>
+            </View>
+          </View>
+          <View style={styles.helpPhoneRow}>
+            <Text style={styles.helpPhone}>1800-233-4000</Text>
+            <View style={styles.tollFreeBadge}>
+              <Text style={styles.tollFreeText}>Toll Free</Text>
+            </View>
+          </View>
           <Text style={styles.helpHours}>
-            {state.lang === 'hi' ? 'सोम–शनि, सुबह 10 – शाम 5' : state.lang === 'mr' ? 'सोम–शनि, सकाळी 10 – सायं 5' : 'Mon–Sat, 10 AM – 5 PM'}
+            {state.lang === 'hi' ? 'सोम–शनि, सुबह 10 – शाम 5' : state.lang === 'mr' ? 'सोम–शनि, सकाळी 10 – सायं 5' : 'Mon–Sat  •  10:00 AM – 5:00 PM'}
           </Text>
         </View>
 
-        <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
-          <Text style={styles.logoutText}>🚪 {t('logout')}</Text>
+        <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout} activeOpacity={0.85}>
+          <Text style={styles.logoutText}>🚪  {t('logout')}</Text>
         </TouchableOpacity>
 
         <View style={{ height: 40 }} />
@@ -116,44 +131,66 @@ export default function RejectedScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: COLORS.background },
-  scroll: { paddingHorizontal: 20, paddingTop: 60, paddingBottom: 20 },
-  header: { alignItems: 'center', marginBottom: 28 },
-  iconCircle: {
-    width: 96, height: 96, borderRadius: 48,
-    backgroundColor: COLORS.errorLight, alignItems: 'center', justifyContent: 'center',
-    marginBottom: 16, ...SHADOW.md,
+  topBar: {
+    backgroundColor: COLORS.primaryDark, paddingHorizontal: 20, paddingVertical: 14,
   },
-  iconEmoji: { fontSize: 48 },
+  topBarTitle: { fontSize: FONT_SIZE.base, fontWeight: '800', color: COLORS.gold },
+  topBarSub: { fontSize: FONT_SIZE.xs, color: 'rgba(255,255,255,0.6)', marginTop: 2 },
+  scroll: { paddingHorizontal: 18, paddingTop: 20, paddingBottom: 20 },
+  statusHero: { alignItems: 'center', marginBottom: 20 },
+  statusIconRing: {
+    width: 100, height: 100, borderRadius: 50,
+    backgroundColor: COLORS.errorLight, alignItems: 'center', justifyContent: 'center',
+    marginBottom: 16, borderWidth: 2, borderColor: COLORS.error + '40', ...SHADOW.sm,
+  },
+  statusIconInner: {
+    width: 78, height: 78, borderRadius: 39,
+    backgroundColor: '#FEE2E2', alignItems: 'center', justifyContent: 'center',
+  },
+  statusEmoji: { fontSize: 40 },
   title: { fontSize: FONT_SIZE['2xl'], fontWeight: '800', color: COLORS.error, textAlign: 'center', marginBottom: 10 },
   subtitle: { fontSize: FONT_SIZE.sm, color: COLORS.textSecondary, textAlign: 'center', lineHeight: 20, maxWidth: 300 },
   idCard: {
-    backgroundColor: COLORS.errorLight, borderRadius: RADIUS.lg, padding: 20,
-    marginBottom: 20, alignItems: 'center', borderWidth: 2, borderColor: COLORS.error, ...SHADOW.sm,
+    backgroundColor: COLORS.primaryDark, borderRadius: RADIUS.lg, padding: 18,
+    marginBottom: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', ...SHADOW.md,
   },
-  idLabel: { fontSize: FONT_SIZE.xs, fontWeight: '700', color: COLORS.error, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 },
-  idValue: { fontSize: FONT_SIZE['3xl'], fontWeight: '800', color: COLORS.error, letterSpacing: 2 },
-  idMobile: { fontSize: FONT_SIZE.sm, color: COLORS.textSecondary, marginTop: 4 },
-  infoCard: {
-    backgroundColor: COLORS.white, borderRadius: RADIUS.lg, padding: 20,
-    marginBottom: 16, ...SHADOW.sm,
+  idLabel: { fontSize: FONT_SIZE.xs, fontWeight: '700', color: COLORS.gold, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 },
+  idValue: { fontSize: FONT_SIZE['2xl'], fontWeight: '800', color: COLORS.white, letterSpacing: 1 },
+  idMobile: { fontSize: FONT_SIZE.sm, color: 'rgba(255,255,255,0.6)', marginTop: 4 },
+  idIconBox: { width: 52, height: 52, borderRadius: 26, backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' },
+  idIcon: { fontSize: 26 },
+  stepsCard: {
+    backgroundColor: COLORS.white, borderRadius: RADIUS.lg, padding: 18,
+    marginBottom: 16, ...SHADOW.sm, gap: 14,
   },
-  infoTitle: { fontSize: FONT_SIZE.base, fontWeight: '700', color: COLORS.text, marginBottom: 14 },
-  stepList: { gap: 14 },
+  cardTitle: { fontSize: FONT_SIZE.base, fontWeight: '800', color: COLORS.text, marginBottom: 4 },
   stepRow: { flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
   stepNum: {
-    width: 26, height: 26, borderRadius: 13, backgroundColor: COLORS.error,
-    color: COLORS.white, fontSize: FONT_SIZE.sm, fontWeight: '800',
-    textAlign: 'center', lineHeight: 26,
+    width: 28, height: 28, borderRadius: 14,
+    backgroundColor: COLORS.primaryDark, alignItems: 'center', justifyContent: 'center',
   },
+  stepNumText: { color: COLORS.white, fontSize: FONT_SIZE.sm, fontWeight: '800' },
   stepText: { flex: 1, fontSize: FONT_SIZE.sm, color: COLORS.textSecondary, lineHeight: 20 },
   helpCard: {
-    backgroundColor: COLORS.infoLight, borderRadius: RADIUS.md, padding: 16,
-    marginBottom: 20, borderLeftWidth: 3, borderLeftColor: COLORS.info, alignItems: 'center',
+    backgroundColor: COLORS.primaryBg, borderRadius: RADIUS.lg, padding: 18,
+    marginBottom: 20, borderWidth: 1.5, borderColor: COLORS.primaryLight, ...SHADOW.sm,
   },
-  helpTitle: { fontSize: FONT_SIZE.base, fontWeight: '700', color: COLORS.info, marginBottom: 8 },
-  helpText: { fontSize: FONT_SIZE.sm, color: COLORS.textSecondary, marginBottom: 4 },
-  helpPhone: { fontSize: FONT_SIZE.xl, fontWeight: '800', color: COLORS.info, marginBottom: 4 },
-  helpHours: { fontSize: FONT_SIZE.xs, color: COLORS.textMuted },
+  helpHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 14 },
+  helpIconBox: {
+    width: 44, height: 44, borderRadius: 22,
+    backgroundColor: COLORS.white, alignItems: 'center', justifyContent: 'center', ...SHADOW.sm,
+  },
+  helpIcon: { fontSize: 22 },
+  helpTitle: { fontSize: FONT_SIZE.base, fontWeight: '800', color: COLORS.primaryDark },
+  helpOrg: { fontSize: FONT_SIZE.xs, color: COLORS.textSecondary, marginTop: 2 },
+  helpPhoneRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },
+  helpPhone: { fontSize: FONT_SIZE['2xl'], fontWeight: '800', color: COLORS.primaryDark },
+  tollFreeBadge: {
+    backgroundColor: COLORS.primary, borderRadius: RADIUS.full,
+    paddingHorizontal: 10, paddingVertical: 4,
+  },
+  tollFreeText: { fontSize: 10, fontWeight: '800', color: COLORS.white },
+  helpHours: { fontSize: FONT_SIZE.sm, color: COLORS.textSecondary },
   logoutBtn: {
     backgroundColor: COLORS.white, borderRadius: RADIUS.lg, paddingVertical: 16,
     alignItems: 'center', borderWidth: 2, borderColor: COLORS.error, ...SHADOW.sm,
