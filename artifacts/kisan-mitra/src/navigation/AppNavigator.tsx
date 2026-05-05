@@ -133,7 +133,7 @@ function MainTabs({ initialTab }: { initialTab: 'Home' | 'Profile' }) {
 }
 
 export default function AppNavigator() {
-  const { state } = useAuth();
+  const { state, clearReupload } = useAuth();
   const [showCongrats, setShowCongrats] = useState(false);
   const prevStatusRef = useRef<string | undefined>(undefined);
 
@@ -188,6 +188,10 @@ export default function AppNavigator() {
           </Stack.Screen>
         ) : farmerStatus === 'Pending' ? (
           <Stack.Screen name="Pending" component={PendingScreen} />
+        ) : (farmerStatus === 'Rejected' || farmerStatus === 'Cancelled') && state.reuploadRequested ? (
+          <Stack.Screen name="DocumentUpload">
+            {() => <DocumentUploadScreen onCancelReupload={clearReupload} isReupload />}
+          </Stack.Screen>
         ) : (farmerStatus === 'Rejected' || farmerStatus === 'Cancelled') ? (
           <Stack.Screen name="Rejected" component={RejectedScreen} />
         ) : hasDocs ? (

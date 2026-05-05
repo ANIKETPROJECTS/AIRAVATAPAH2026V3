@@ -7,7 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import { COLORS, FONT_SIZE, RADIUS, SHADOW, T } from '../constants';
 
 export default function RejectedScreen() {
-  const { state, logout } = useAuth();
+  const { state, logout, requestReupload } = useAuth();
   const t = (k: string) => (T[state.lang] ?? T['en'])[k] ?? k;
   const farmer = state.farmer;
 
@@ -22,6 +22,11 @@ export default function RejectedScreen() {
       { text: t('logout'), style: 'destructive', onPress: () => { logout(); } },
     ]);
   }
+
+  const reuploadLabel =
+    state.lang === 'hi' ? '📤  दस्तावेज़ पुनः अपलोड करें' :
+    state.lang === 'mr' ? '📤  कागदपत्रे पुन्हा अपलोड करा' :
+    '📤  Re-upload Documents';
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -86,6 +91,18 @@ export default function RejectedScreen() {
           </View>
         )}
 
+        {/* Re-upload CTA */}
+        <TouchableOpacity style={styles.reuploadBtn} onPress={requestReupload} activeOpacity={0.85}>
+          <Text style={styles.reuploadBtnText}>{reuploadLabel}</Text>
+          <Text style={styles.reuploadBtnSub}>
+            {state.lang === 'hi'
+              ? 'सही किए गए दस्तावेज़ अपलोड करके पुनः समीक्षा के लिए सबमिट करें'
+              : state.lang === 'mr'
+              ? 'दुरुस्त केलेली कागदपत्रे अपलोड करा आणि पुन्हा पुनरावलोकनासाठी सबमिट करा'
+              : 'Upload corrected documents and resubmit for review'}
+          </Text>
+        </TouchableOpacity>
+
         <View style={styles.stepsCard}>
           <Text style={styles.cardTitle}>
             {state.lang === 'hi' ? '📋 अगले कदम' : state.lang === 'mr' ? '📋 पुढील पायऱ्या' : '📋 What to do next'}
@@ -97,10 +114,10 @@ export default function RejectedScreen() {
               ? 'वरील नाकारण्याचे कारण काळजीपूर्वक वाचा आणि तुमचे कागदपत्र दुरुस्त करा.'
               : 'Read the rejection reason above carefully and correct the mentioned issues.',
             state.lang === 'hi'
-              ? 'अपने नजदीकी कृषि कार्यालय से संपर्क करें और सही दस्तावेज़ जमा करें।'
+              ? '"दस्तावेज़ पुनः अपलोड" बटन दबाएं और सही दस्तावेज़ अपलोड करें।'
               : state.lang === 'mr'
-              ? 'तुमच्या जवळच्या कृषी कार्यालयाशी संपर्क साधा आणि योग्य कागदपत्रे सादर करा.'
-              : 'Visit your nearest Agriculture Office with the corrected documents.',
+              ? '"कागदपत्रे पुन्हा अपलोड" बटण दाबा आणि योग्य कागदपत्रे अपलोड करा.'
+              : 'Tap "Re-upload Documents" above and upload the corrected files.',
             state.lang === 'hi'
               ? 'किसी समस्या के लिए कृषि विभाग हेल्पलाइन से संपर्क करें।'
               : state.lang === 'mr'
@@ -191,6 +208,13 @@ const styles = StyleSheet.create({
   reasonText: { fontSize: FONT_SIZE.base, color: '#7F1D1D', lineHeight: 22, fontStyle: 'italic' },
   reasonFooter: { marginTop: 12, borderTopWidth: 1, borderTopColor: '#FCA5A5', paddingTop: 8 },
   reasonFooterText: { fontSize: FONT_SIZE.xs, color: '#991B1B', fontWeight: '600' },
+  reuploadBtn: {
+    backgroundColor: COLORS.primaryDark, borderRadius: RADIUS.lg, padding: 18,
+    marginBottom: 16, alignItems: 'center', ...SHADOW.md,
+    borderWidth: 2, borderColor: COLORS.primary,
+  },
+  reuploadBtnText: { color: COLORS.white, fontSize: FONT_SIZE.lg, fontWeight: '800', marginBottom: 4 },
+  reuploadBtnSub: { color: 'rgba(255,255,255,0.65)', fontSize: FONT_SIZE.xs, textAlign: 'center', lineHeight: 16 },
   stepsCard: {
     backgroundColor: COLORS.white, borderRadius: RADIUS.lg, padding: 18,
     marginBottom: 16, ...SHADOW.sm, gap: 14,

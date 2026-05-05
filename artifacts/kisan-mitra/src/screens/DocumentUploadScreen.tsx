@@ -10,7 +10,12 @@ import { api } from '../api';
 import { COLORS, FONT_SIZE, RADIUS, SHADOW, T } from '../constants';
 import { REQUIRED_DOCUMENTS, DocUploadState, DocUploadStatus, DocumentTypeId } from '../types';
 
-export default function DocumentUploadScreen() {
+interface Props {
+  isReupload?: boolean;
+  onCancelReupload?: () => void;
+}
+
+export default function DocumentUploadScreen({ isReupload, onCancelReupload }: Props) {
   const { state, updateFarmer, logout } = useAuth();
   const t = (k: string) => (T[state.lang] ?? T['en'])[k] ?? k;
 
@@ -150,28 +155,64 @@ export default function DocumentUploadScreen() {
 
   const pct = (doneCount / REQUIRED_DOCUMENTS.length) * 100;
 
+  const reuploadTitle =
+    state.lang === 'hi' ? 'दस्तावेज़ पुनः अपलोड करें' :
+    state.lang === 'mr' ? 'कागदपत्रे पुन्हा अपलोड करा' :
+    'Re-upload Documents';
+
+  const reuploadSub =
+    state.lang === 'hi' ? 'अस्वीकृति का कारण पढ़ें और सही दस्तावेज़ अपलोड करें।' :
+    state.lang === 'mr' ? 'नाकारण्याचे कारण वाचा आणि योग्य कागदपत्रे अपलोड करा.' :
+    'Review the rejection reason and upload the corrected documents.';
+
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.topBar}>
-        <View>
+        <View style={{ flex: 1 }}>
           <Text style={styles.topBarTitle}>कृषी सुविधा</Text>
-          <Text style={styles.topBarSub}>Farmer Registration</Text>
+          <Text style={styles.topBarSub}>
+            {isReupload
+              ? (state.lang === 'hi' ? 'दस्तावेज़ पुनः अपलोड'
+                : state.lang === 'mr' ? 'कागदपत्रे पुन्हा अपलोड'
+                : 'Document Re-upload')
+              : 'Farmer Registration'}
+          </Text>
         </View>
-        <TouchableOpacity style={styles.logoutTopBtn} onPress={handleLogout}>
-          <Text style={styles.logoutTopText}>Logout</Text>
-        </TouchableOpacity>
+        {isReupload && onCancelReupload ? (
+          <TouchableOpacity style={styles.backTopBtn} onPress={onCancelReupload}>
+            <Text style={styles.backTopText}>← Back</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity style={styles.logoutTopBtn} onPress={handleLogout}>
+            <Text style={styles.logoutTopText}>Logout</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        <View style={styles.heroBox}>
-          <View style={styles.heroIconBox}>
-            <Text style={styles.heroIcon}>📑</Text>
+
+        {/* Reupload banner */}
+        {isReupload && (
+          <View style={styles.reuploadBanner}>
+            <Text style={styles.reuploadBannerIcon}>🔄</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.reuploadBannerTitle}>{reuploadTitle}</Text>
+              <Text style={styles.reuploadBannerSub}>{reuploadSub}</Text>
+            </View>
           </View>
-          <View style={styles.heroText}>
-            <Text style={styles.heroTitle}>{t('registerTitle')}</Text>
-            <Text style={styles.heroSub}>{t('registerSubtitle')}</Text>
+        )}
+
+        {!isReupload && (
+          <View style={styles.heroBox}>
+            <View style={styles.heroIconBox}>
+              <Text style={styles.heroIcon}>📑</Text>
+            </View>
+            <View style={styles.heroText}>
+              <Text style={styles.heroTitle}>{t('registerTitle')}</Text>
+              <Text style={styles.heroSub}>{t('registerSubtitle')}</Text>
+            </View>
           </View>
-        </View>
+        )}
 
         <View style={styles.progressCard}>
           <View style={styles.progressRow}>
@@ -242,7 +283,9 @@ export default function DocumentUploadScreen() {
           <View style={styles.tipBox}>
             <Text style={styles.tipIcon}>📌</Text>
             <Text style={styles.tipText}>
-              Upload all 5 documents to complete registration. Accepted formats: JPG, PNG, PDF.
+              {isReupload
+                ? 'Upload all corrected documents, then tap Submit to resubmit for review.'
+                : 'Upload all 5 documents to complete registration. Accepted formats: JPG, PNG, PDF.'}
             </Text>
           </View>
         )}
@@ -256,9 +299,17 @@ export default function DocumentUploadScreen() {
           {submitting
             ? <ActivityIndicator color={COLORS.white} />
             : <Text style={styles.submitBtnText}>
-                {allDone ? `✅  ${t('submitReg')}` : `Upload all ${REQUIRED_DOCUMENTS.length - doneCount} remaining documents`}
+                {allDone
+                  ? `✅  ${isReupload ? 'Resubmit for Review' : t('submitReg')}`
+                  : `Upload all ${REQUIRED_DOCUMENTS.length - doneCount} remaining documents`}
               </Text>}
         </TouchableOpacity>
+
+        {isReupload && onCancelReupload && (
+          <TouchableOpacity style={styles.cancelReuploadBtn} onPress={onCancelReupload}>
+            <Text style={styles.cancelReuploadText}>← Back to Status</Text>
+          </TouchableOpacity>
+        )}
 
         <View style={{ height: 40 }} />
       </ScrollView>
@@ -279,7 +330,21 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.full, borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)',
   },
   logoutTopText: { color: 'rgba(255,255,255,0.8)', fontSize: FONT_SIZE.sm, fontWeight: '600' },
+  backTopBtn: {
+    paddingHorizontal: 14, paddingVertical: 7,
+    borderRadius: RADIUS.full, borderWidth: 1, borderColor: 'rgba(255,255,255,0.4)',
+  },
+  backTopText: { color: COLORS.gold, fontSize: FONT_SIZE.sm, fontWeight: '700' },
   scroll: { paddingHorizontal: 18, paddingTop: 20, paddingBottom: 20 },
+  reuploadBanner: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 12,
+    backgroundColor: '#FFF7ED', borderRadius: RADIUS.lg, padding: 16,
+    marginBottom: 16, borderWidth: 1.5, borderColor: '#FED7AA',
+    ...SHADOW.sm,
+  },
+  reuploadBannerIcon: { fontSize: 28, marginTop: 2 },
+  reuploadBannerTitle: { fontSize: FONT_SIZE.base, fontWeight: '800', color: '#9A3412', marginBottom: 4 },
+  reuploadBannerSub: { fontSize: FONT_SIZE.sm, color: '#C2410C', lineHeight: 20 },
   heroBox: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 14,
     backgroundColor: COLORS.white, borderRadius: RADIUS.lg, padding: 16,
@@ -351,4 +416,8 @@ const styles = StyleSheet.create({
   },
   submitBtnDisabled: { backgroundColor: COLORS.textMuted + '60' },
   submitBtnText: { color: COLORS.white, fontSize: FONT_SIZE.base, fontWeight: '800' },
+  cancelReuploadBtn: {
+    marginTop: 12, paddingVertical: 14, alignItems: 'center',
+  },
+  cancelReuploadText: { color: COLORS.textMuted, fontSize: FONT_SIZE.base, fontWeight: '600' },
 });

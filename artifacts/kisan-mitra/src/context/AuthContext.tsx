@@ -10,6 +10,7 @@ interface AuthState {
   farmer: Farmer | null;
   lang: Lang;
   justLoggedIn: boolean;
+  reuploadRequested: boolean;
 }
 
 type AuthAction =
@@ -18,22 +19,28 @@ type AuthAction =
   | { type: 'UPDATE_FARMER'; payload: Farmer | null }
   | { type: 'SET_LANG'; payload: Lang }
   | { type: 'CLEAR_JUST_LOGGED_IN' }
+  | { type: 'REQUEST_REUPLOAD' }
+  | { type: 'CLEAR_REUPLOAD' }
   | { type: 'LOGOUT' };
 
 function reducer(state: AuthState, action: AuthAction): AuthState {
   switch (action.type) {
     case 'INIT':
-      return { loading: false, justLoggedIn: false, ...action.payload };
+      return { loading: false, justLoggedIn: false, reuploadRequested: false, ...action.payload };
     case 'LOGIN':
-      return { ...state, loading: false, justLoggedIn: true, ...action.payload };
+      return { ...state, loading: false, justLoggedIn: true, reuploadRequested: false, ...action.payload };
     case 'UPDATE_FARMER':
       return { ...state, farmer: action.payload };
     case 'SET_LANG':
       return { ...state, lang: action.payload };
     case 'CLEAR_JUST_LOGGED_IN':
       return { ...state, justLoggedIn: false };
+    case 'REQUEST_REUPLOAD':
+      return { ...state, reuploadRequested: true };
+    case 'CLEAR_REUPLOAD':
+      return { ...state, reuploadRequested: false };
     case 'LOGOUT':
-      return { loading: false, token: null, mobile: null, farmer: null, lang: state.lang, justLoggedIn: false };
+      return { loading: false, token: null, mobile: null, farmer: null, lang: state.lang, justLoggedIn: false, reuploadRequested: false };
     default:
       return state;
   }
@@ -47,16 +54,20 @@ interface AuthContextValue {
   updateFarmer: (farmer: Farmer | null) => void;
   setLang: (lang: Lang) => void;
   clearJustLoggedIn: () => void;
+  requestReupload: () => void;
+  clearReupload: () => void;
 }
 
 const AuthContext = createContext<AuthContextValue>({
-  state: { loading: true, token: null, mobile: null, farmer: null, lang: 'en', justLoggedIn: false },
+  state: { loading: true, token: null, mobile: null, farmer: null, lang: 'en', justLoggedIn: false, reuploadRequested: false },
   login: async () => {},
   logout: async () => {},
   refreshFarmer: async () => {},
   updateFarmer: () => {},
   setLang: () => {},
   clearJustLoggedIn: () => {},
+  requestReupload: () => {},
+  clearReupload: () => {},
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -67,6 +78,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     farmer: null,
     lang: 'en',
     justLoggedIn: false,
+    reuploadRequested: false,
   });
 
   useEffect(() => {
@@ -112,8 +124,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await storage.saveFarmer(farmer);
       dispatch({ type: 'UPDATE_FARMER', payload: farmer });
     } catch {
-      // Silently ignore errors — keep existing farmer state so the user
-      // isn't unexpectedly navigated away from the Pending screen.
+      // Silently ignore — keep existing farmer state
     }
   }, [state.mobile]);
 
@@ -131,8 +142,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: 'CLEAR_JUST_LOGGED_IN' });
   }, []);
 
+  const requestReupload = useCallback(() => {
+    dispatch({ type: 'REQUEST_REUPLOAD' });
+  }, []);
+
+  const clearReupload = useCallback(() => {
+    dispatch({ type: 'CLEAR_REUPLOAD' });
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ state, login, logout, refreshFarmer, updateFarmer, setLang, clearJustLoggedIn }}>
+    <AuthContext.Provider value={{ state, login, logout, refreshFarmer, updateFarmer, setLang, clearJustLoggedIn, requestReupload, clearReupload }}>
       {children}
     </AuthContext.Provider>
   );
