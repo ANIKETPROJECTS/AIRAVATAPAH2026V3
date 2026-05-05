@@ -1,4 +1,4 @@
-export type FarmerStatus = 'Draft' | 'Pending' | 'Active' | 'Inactive' | 'Rejected';
+export type FarmerStatus = 'Draft' | 'Pending' | 'Active' | 'Verified' | 'Inactive' | 'Rejected' | 'Cancelled';
 
 export interface FarmerDoc {
   name: string;

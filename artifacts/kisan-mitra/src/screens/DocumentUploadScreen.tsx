@@ -11,8 +11,20 @@ import { COLORS, FONT_SIZE, RADIUS, SHADOW, T } from '../constants';
 import { REQUIRED_DOCUMENTS, DocUploadState, DocUploadStatus, DocumentTypeId } from '../types';
 
 export default function DocumentUploadScreen() {
-  const { state, updateFarmer } = useAuth();
+  const { state, updateFarmer, logout } = useAuth();
   const t = (k: string) => (T[state.lang] ?? T['en'])[k] ?? k;
+
+  async function handleLogout() {
+    if (Platform.OS === 'web') {
+      const msg = t('logoutConfirm') || 'Are you sure you want to logout?';
+      if (window.confirm(msg)) await logout();
+      return;
+    }
+    Alert.alert(t('logout'), t('logoutConfirm'), [
+      { text: t('cancel'), style: 'cancel' },
+      { text: t('logout'), style: 'destructive', onPress: () => { logout(); } },
+    ]);
+  }
 
   const [docStates, setDocStates] = useState<Record<DocumentTypeId, DocUploadState>>({
     aadhar: { status: 'idle' },
@@ -231,6 +243,10 @@ export default function DocumentUploadScreen() {
             : <Text style={styles.submitBtnText}>{allDone ? t('submitReg') : `Upload all documents to continue`}</Text>}
         </TouchableOpacity>
 
+        <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
+          <Text style={styles.logoutBtnText}>🚪 {t('logout')}</Text>
+        </TouchableOpacity>
+
         <View style={{ height: 40 }} />
       </ScrollView>
     </SafeAreaView>
@@ -287,4 +303,6 @@ const styles = StyleSheet.create({
   },
   submitBtnDisabled: { backgroundColor: COLORS.border },
   submitBtnText: { color: COLORS.white, fontSize: FONT_SIZE.base, fontWeight: '700' },
+  logoutBtn: { paddingVertical: 16, alignItems: 'center', marginTop: 4 },
+  logoutBtnText: { color: COLORS.error, fontSize: FONT_SIZE.base, fontWeight: '600' },
 });

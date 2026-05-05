@@ -121,11 +121,11 @@ export default function AppNavigator() {
             <Stack.Screen name="Login" component={LoginScreen} />
             <Stack.Screen name="Otp" component={OtpScreen} />
           </>
-        ) : farmerStatus === 'Active' ? (
+        ) : (farmerStatus === 'Active' || farmerStatus === 'Verified') ? (
           <Stack.Screen name="Main" component={MainTabs} />
         ) : farmerStatus === 'Pending' ? (
           <Stack.Screen name="Pending" component={PendingScreen} />
-        ) : farmerStatus === 'Rejected' ? (
+        ) : (farmerStatus === 'Rejected' || farmerStatus === 'Cancelled') ? (
           <Stack.Screen name="Rejected" component={RejectedScreen} />
         ) : (
           /* Draft, Inactive, null — stay on DocumentUpload */
