@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { ChevronLeft, ChevronRight, Plus, RefreshCw, Search, Paperclip, ArrowLeft, AlertTriangle } from "lucide-react";
-import { apiFetchGrievances, apiUpdateGrievance, type GrievanceRecord } from "@/data/grievanceApi";
+import { apiFetchGrievances, apiUpdateGrievance, apiDeleteGrievance, type GrievanceRecord } from "@/data/grievanceApi";
 import GrievanceFilingForm from "@/components/forms/GrievanceFilingForm";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -55,6 +55,8 @@ function GrievanceDetailPage({
   const [showRejectInput, setShowRejectInput] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
   const [rejectSaving, setRejectSaving] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const currentGr = gr;
 
@@ -111,6 +113,15 @@ function GrievanceDetailPage({
       showToast("❌ Grievance rejected");
     } catch { showToast("❌ Failed to reject grievance"); }
     finally { setRejectSaving(false); }
+  }
+
+  async function handleConfirmDelete() {
+    setDeleting(true);
+    try {
+      await apiDeleteGrievance(gr.grievanceId);
+      onBack();
+      showToast("🗑️ Grievance deleted");
+    } catch { showToast("❌ Failed to delete grievance"); setDeleting(false); }
   }
 
   const isSettled = currentGr.status === "Resolved" || currentGr.status === "Rejected" || currentGr.status === "Closed";
@@ -273,6 +284,29 @@ function GrievanceDetailPage({
                 </div>
               </div>
             )}
+
+            <div className="border-t border-border pt-3">
+              {showDeleteConfirm ? (
+                <div className="space-y-2">
+                  <p className="text-xs text-destructive font-medium">⚠️ This will permanently delete the grievance. This action cannot be undone.</p>
+                  <div className="flex gap-2">
+                    <button onClick={handleConfirmDelete} disabled={deleting}
+                      className="flex-1 text-sm px-3 py-2 rounded-lg bg-destructive text-white hover:opacity-90 disabled:opacity-50 font-medium">
+                      {deleting ? "Deleting…" : "Yes, Delete"}
+                    </button>
+                    <button onClick={() => setShowDeleteConfirm(false)} disabled={deleting}
+                      className="text-sm px-3 py-2 rounded-lg border border-border hover:bg-muted">
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button onClick={() => { setShowDeleteConfirm(true); setShowRejectInput(false); }} disabled={saving}
+                  className="w-full text-sm px-4 py-2.5 rounded-lg border border-destructive/30 bg-destructive/5 text-destructive hover:bg-destructive/10 disabled:opacity-50 font-medium">
+                  🗑️ Delete Grievance
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Admin reply & notes */}
