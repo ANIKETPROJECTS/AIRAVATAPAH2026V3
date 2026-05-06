@@ -1,10 +1,12 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
+import { createPortal } from "react-dom";
 import {
   Upload, CheckCircle2, XCircle, Loader2, FileText,
   User, Landmark, FileStack, Sprout,
   ClipboardCheck, UserCheck, Pencil, ThumbsUp, Camera,
   ArrowRight, ArrowLeft, ChevronRight, ChevronDown,
   Sparkles, AlertTriangle, CircleAlert, Info, ShieldCheck,
+  X, ZoomIn, Image,
 } from "lucide-react";
 import { apiCreateFarmer, notifyFarmerChange } from "@/data/farmerApi";
 
@@ -566,6 +568,55 @@ export interface ExtractionState {
   error: string | null;
   /** Data URL of the raw uploaded file (captured locally before upload) */
   rawFileDataUrl?: string | null;
+}
+
+/** Full-screen document lightbox — click outside or press Esc to close */
+export function DocLightbox({ src, label, onClose }: { src: string; label?: string; onClose: () => void }) {
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onClose]);
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[300] flex flex-col bg-black/96"
+      onClick={onClose}
+    >
+      <div
+        className="flex items-center justify-between px-6 py-3 border-b border-white/10 bg-black/70 flex-shrink-0"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center gap-2">
+          <Image className="h-4 w-4 text-white/50 flex-shrink-0" />
+          {label && <span className="text-sm font-semibold text-white/80">{label}</span>}
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-white/40 hidden sm:block">Click outside or press Esc to close</span>
+          <button
+            onClick={onClose}
+            className="flex items-center gap-2 text-white/70 hover:text-white text-sm font-semibold transition-colors px-4 py-2 rounded-lg hover:bg-white/10 border border-white/20"
+          >
+            <X className="h-4 w-4" />
+            Close
+          </button>
+        </div>
+      </div>
+      <div
+        className="flex-1 overflow-auto flex items-center justify-center p-6"
+        onClick={e => e.stopPropagation()}
+      >
+        <img
+          src={src}
+          alt={label ?? "Document"}
+          className="max-w-full max-h-full object-contain rounded-xl shadow-2xl select-none"
+          style={{ cursor: "zoom-in" }}
+          onDoubleClick={onClose}
+        />
+      </div>
+    </div>,
+    document.body,
+  );
 }
 
 export const DEFAULT_STATE: ExtractionState = {
@@ -1808,6 +1859,7 @@ function DocReviewPanel({
   onCustomPhotoChange: (v: string | null) => void;
 }) {
   const Icon = card.icon;
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -1886,30 +1938,61 @@ function DocReviewPanel({
       )}
 
       {state.rawFileDataUrl ? (
-        <div className="flex gap-5 mb-6 items-start">
-          <div className="w-[280px] flex-shrink-0 sticky top-4">
-            <div className="rounded-xl border border-border bg-white overflow-hidden shadow-sm">
-              <div className="flex items-center gap-2 px-3 py-2 border-b border-border bg-muted/30">
-                <FileText className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
-                <span className="text-xs font-semibold text-muted-foreground truncate">Original Document</span>
+        <>
+          {lightboxSrc && (
+            <DocLightbox
+              src={lightboxSrc}
+              label={`${card.label} — Original Document`}
+              onClose={() => setLightboxSrc(null)}
+            />
+          )}
+          <div className="flex gap-5 mb-6 items-start">
+            <div className="w-[280px] flex-shrink-0 sticky top-4">
+              <div className="rounded-xl border border-border bg-white overflow-hidden shadow-sm">
+                <div className="flex items-center gap-2 px-3 py-2 border-b border-border bg-muted/30">
+                  <FileText className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                  <span className="text-xs font-semibold text-muted-foreground truncate flex-1">Original Document</span>
+                  <button
+                    type="button"
+                    onClick={() => setLightboxSrc(state.rawFileDataUrl!)}
+                    className="flex items-center gap-1 text-[11px] text-primary hover:text-primary/80 font-semibold transition-colors"
+                    title="View fullscreen"
+                  >
+                    <ZoomIn className="h-3 w-3" />
+                    Expand
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setLightboxSrc(state.rawFileDataUrl!)}
+                  className="w-full block focus:outline-none group relative"
+                  title="Click to view fullscreen"
+                >
+                  <img
+                    src={state.rawFileDataUrl}
+                    alt="Uploaded document"
+                    className="w-full object-contain max-h-[520px] bg-white"
+                  />
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                    <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-black/70 text-white text-xs font-semibold rounded-full px-3 py-1.5 flex items-center gap-1.5">
+                      <ZoomIn className="h-3.5 w-3.5" />
+                      View fullscreen
+                    </div>
+                  </div>
+                </button>
               </div>
-              <img
-                src={state.rawFileDataUrl}
-                alt="Uploaded document"
-                className="w-full object-contain max-h-[520px] bg-white"
+            </div>
+            <div className="flex-1 min-w-0 rounded-xl border border-border bg-card p-5">
+              <FieldsTable
+                sections={state.sections}
+                rawTables={state.rawTables}
+                textBlocks={state.textBlocks}
+                docId={card.id}
+                lang={lang}
               />
             </div>
           </div>
-          <div className="flex-1 min-w-0 rounded-xl border border-border bg-card p-5">
-            <FieldsTable
-              sections={state.sections}
-              rawTables={state.rawTables}
-              textBlocks={state.textBlocks}
-              docId={card.id}
-              lang={lang}
-            />
-          </div>
-        </div>
+        </>
       ) : (
         <div className="rounded-xl border border-border bg-card p-5 mb-6">
           <FieldsTable
@@ -2229,6 +2312,7 @@ export function FarmerProfileCard({
   onCustomPhotoChange,
   hideFooter = false,
   highlightedFields,
+  extraDocImages,
 }: {
   docStates: Record<DocTypeId, ExtractionState>;
   profile: FarmerProfile;
@@ -2242,9 +2326,12 @@ export function FarmerProfileCard({
   onCustomPhotoChange: (v: string | null) => void;
   hideFooter?: boolean;
   highlightedFields?: Set<keyof FarmerProfile>;
+  /** Fallback doc images fetched from DB (docType → data URL), used when rawFileDataUrl is absent */
+  extraDocImages?: Record<string, string>;
 }) {
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
   const [form12EditedCells, setForm12EditedCells] = useState<Record<string, string>>({});
+  const [profileLightbox, setProfileLightbox] = useState<{ src: string; label: string } | null>(null);
   const toggleSection = (id: string) =>
     setCollapsedSections(prev => {
       const next = new Set(prev);
@@ -2331,6 +2418,56 @@ export function FarmerProfileCard({
       </div>
 
       <div className="p-5 space-y-6">
+        {/* ── Submitted Documents thumbnails ── */}
+        {(() => {
+          const available = DOC_CARDS.map(c => {
+            const src = docStates[c.id]?.rawFileDataUrl ?? extraDocImages?.[c.id] ?? null;
+            return src ? { id: c.id, label: c.label, src } : null;
+          }).filter(Boolean) as { id: string; label: string; src: string }[];
+          if (available.length === 0) return null;
+          return (
+            <div>
+              {profileLightbox && (
+                <DocLightbox
+                  src={profileLightbox.src}
+                  label={profileLightbox.label}
+                  onClose={() => setProfileLightbox(null)}
+                />
+              )}
+              <div className="flex items-center gap-2 mb-3 pb-2 border-b border-border">
+                <Image className="h-3.5 w-3.5 text-muted-foreground" />
+                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wide">Submitted Documents</span>
+                <span className="ml-auto text-xs text-muted-foreground">{available.length} uploaded</span>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                {available.map(doc => (
+                  <button
+                    key={doc.id}
+                    type="button"
+                    onClick={() => setProfileLightbox({ src: doc.src, label: doc.label })}
+                    className="group relative flex-shrink-0 rounded-xl overflow-hidden border border-border shadow-sm hover:shadow-md transition-shadow focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1"
+                    style={{ width: 88, height: 110 }}
+                    title={`View ${doc.label}`}
+                  >
+                    <img
+                      src={doc.src}
+                      alt={doc.label}
+                      className="w-full h-full object-cover bg-white"
+                    />
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex flex-col items-center justify-center gap-1">
+                      <ZoomIn className="h-5 w-5 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow" />
+                      <span className="text-[10px] font-semibold text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow text-center leading-tight px-1">{doc.label}</span>
+                    </div>
+                    <div className="absolute bottom-0 left-0 right-0 bg-black/60 px-1 py-0.5">
+                      <span className="text-[9px] text-white/90 font-medium truncate block">{doc.label}</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
+
         {PROFILE_SECTIONS.map((section) => {
           const isExtracted = section.docIds.some(id => docStates[id]?.status === "complete");
           const allFields = section.subsections.flatMap(sub => sub.fields);

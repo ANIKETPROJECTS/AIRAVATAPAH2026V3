@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import {
   X, CheckCircle2, XCircle, ShieldCheck, Loader2,
   FileStack, Sprout, ClipboardCheck, CreditCard, BookOpen,
-  UserCheck, RotateCcw, AlertTriangle, FileText, MessageSquare, ImageIcon,
+  UserCheck, RotateCcw, AlertTriangle, FileText, MessageSquare, ImageIcon, ZoomIn,
 } from "lucide-react";
 import {
   type DocTypeId,
@@ -17,6 +17,7 @@ import {
   DOC_CARD_SHORT,
   type FarmerProfile,
   extractProfileFromStates,
+  DocLightbox,
 } from "./NewRegistration";
 import { apiUpdateFarmer, type FarmerRecord } from "@/data/farmerApi";
 
@@ -57,6 +58,7 @@ function DocContentView({
   rawDocImage?: { base64: string; mimeType: string } | null;
 }) {
   const [showRawText, setShowRawText] = useState(false);
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
 
   const hasFields = state.sections.some(s =>
     s.fields.some(f => f.value && f.value !== "—")
@@ -89,19 +91,49 @@ function DocContentView({
         </div>
       )}
 
+      {lightboxSrc && (
+        <DocLightbox
+          src={lightboxSrc}
+          label="Original Document"
+          onClose={() => setLightboxSrc(null)}
+        />
+      )}
+
       {docImageSrc ? (
         <div className="flex gap-4 items-start">
           <div className="w-[220px] flex-shrink-0 sticky top-2">
             <div className="rounded-xl border border-border bg-white overflow-hidden shadow-sm">
               <div className="flex items-center gap-2 px-3 py-2 border-b border-border bg-muted/30">
                 <ImageIcon className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                <span className="text-[11px] font-semibold text-muted-foreground truncate">Original Document</span>
+                <span className="text-[11px] font-semibold text-muted-foreground truncate flex-1">Original Document</span>
+                <button
+                  type="button"
+                  onClick={() => setLightboxSrc(docImageSrc)}
+                  className="flex items-center gap-1 text-[11px] text-primary hover:text-primary/80 font-semibold transition-colors"
+                  title="View fullscreen"
+                >
+                  <ZoomIn className="h-3 w-3" />
+                  Expand
+                </button>
               </div>
-              <img
-                src={docImageSrc}
-                alt="Original uploaded document"
-                className="w-full object-contain max-h-[480px] bg-white"
-              />
+              <button
+                type="button"
+                onClick={() => setLightboxSrc(docImageSrc)}
+                className="w-full block focus:outline-none group relative"
+                title="Click to view fullscreen"
+              >
+                <img
+                  src={docImageSrc}
+                  alt="Original uploaded document"
+                  className="w-full object-contain max-h-[480px] bg-white"
+                />
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                  <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-black/70 text-white text-xs font-semibold rounded-full px-3 py-1.5 flex items-center gap-1.5">
+                    <ZoomIn className="h-3.5 w-3.5" />
+                    View fullscreen
+                  </div>
+                </div>
+              </button>
             </div>
           </div>
           <div className="flex-1 min-w-0">
@@ -456,6 +488,9 @@ export default function FarmerReviewModal({
             customPhoto={customPhoto}
             onCustomPhotoChange={setCustomPhoto}
             hideFooter={true}
+            extraDocImages={Object.fromEntries(
+              Object.entries(docImages).map(([k, v]) => [k, `data:${v.mimeType};base64,${v.base64}`])
+            )}
           />
         )}
       </div>
