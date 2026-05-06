@@ -48,6 +48,7 @@ export default function DocumentUploadScreen({ isReupload, onCancelReupload }: P
 
   const allDone = REQUIRED_DOCUMENTS.every((d) => docStates[d.id].status === 'done');
   const doneCount = REQUIRED_DOCUMENTS.filter((d) => docStates[d.id].status === 'done').length;
+  const canSubmit = doneCount >= 1;
 
   async function pollUntilDone(docId: DocumentTypeId, requestId: string) {
     const maxAttempts = 60;
@@ -121,7 +122,7 @@ export default function DocumentUploadScreen({ isReupload, onCancelReupload }: P
   }
 
   async function handleSubmit() {
-    if (!allDone) return;
+    if (!canSubmit) return;
     setSubmitting(true);
     try {
       const farmer = await api.submitRegistration(mobile);
@@ -279,29 +280,36 @@ export default function DocumentUploadScreen({ isReupload, onCancelReupload }: P
           })}
         </View>
 
-        {!allDone && (
+        {!canSubmit && (
           <View style={styles.tipBox}>
             <Text style={styles.tipIcon}>📌</Text>
             <Text style={styles.tipText}>
               {isReupload
-                ? 'Upload all corrected documents, then tap Submit to resubmit for review.'
-                : 'Upload all 5 documents to complete registration. Accepted formats: JPG, PNG, PDF.'}
+                ? 'Upload at least one corrected document, then tap Submit to resubmit for review.'
+                : 'Upload at least one document to submit your registration. Accepted formats: JPG, PNG, PDF.'}
+            </Text>
+          </View>
+        )}
+
+        {canSubmit && !allDone && (
+          <View style={[styles.tipBox, { backgroundColor: '#FEF9C3', borderColor: '#FDE047' }]}>
+            <Text style={styles.tipIcon}>💡</Text>
+            <Text style={styles.tipText}>
+              {`${doneCount} of ${REQUIRED_DOCUMENTS.length} documents uploaded. You can submit now or upload more before submitting.`}
             </Text>
           </View>
         )}
 
         <TouchableOpacity
-          style={[styles.submitBtn, (!allDone || submitting) && styles.submitBtnDisabled]}
+          style={[styles.submitBtn, (!canSubmit || submitting) && styles.submitBtnDisabled]}
           onPress={handleSubmit}
-          disabled={!allDone || submitting}
+          disabled={!canSubmit || submitting}
           activeOpacity={0.85}
         >
           {submitting
             ? <ActivityIndicator color={COLORS.white} />
             : <Text style={styles.submitBtnText}>
-                {allDone
-                  ? `✅  ${isReupload ? 'Resubmit for Review' : t('submitReg')}`
-                  : `Upload all ${REQUIRED_DOCUMENTS.length - doneCount} remaining documents`}
+                {`✅  ${isReupload ? 'Resubmit for Review' : t('submitReg')}${!allDone ? ` (${doneCount}/${REQUIRED_DOCUMENTS.length})` : ''}`}
               </Text>}
         </TouchableOpacity>
 
