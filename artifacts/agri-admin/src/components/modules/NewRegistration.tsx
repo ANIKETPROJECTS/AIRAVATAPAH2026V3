@@ -640,7 +640,7 @@ export function DocLightbox({ src, label, onClose }: { src: string; label?: stri
   const pct = Math.round(scale * 100);
 
   return createPortal(
-    <div className="fixed inset-0 z-[300] flex flex-col bg-black/96">
+    <div className="fixed inset-0 flex flex-col bg-black/96" style={{ zIndex: 10001 }}>
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-3 border-b border-white/10 bg-black/70 flex-shrink-0">
         <div className="flex items-center gap-2">
