@@ -1,9 +1,9 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { createPortal } from "react-dom";
 import {
   X, CheckCircle2, XCircle, ShieldCheck, Loader2,
   FileStack, Sprout, ClipboardCheck, CreditCard, BookOpen,
-  UserCheck, RotateCcw, AlertTriangle, FileText, MessageSquare,
+  UserCheck, RotateCcw, AlertTriangle, FileText, MessageSquare, ImageIcon,
 } from "lucide-react";
 import {
   type DocTypeId,
@@ -49,12 +49,15 @@ function DocContentView({
   state,
   docId,
   lang,
+  rawDocImage,
 }: {
   state: ExtractionState;
   docId: DocTypeId;
   lang: LangCode;
+  rawDocImage?: { base64: string; mimeType: string } | null;
 }) {
   const [showRawText, setShowRawText] = useState(false);
+  const [showOriginalDoc, setShowOriginalDoc] = useState(false);
 
   const hasFields = state.sections.some(s =>
     s.fields.some(f => f.value && f.value !== "—")
@@ -64,12 +67,39 @@ function DocContentView({
   const hasTextBlocks = state.textBlocks && state.textBlocks.length > 0;
   const hasMeaningfulContent = hasFields || hasTables || hasRawTables;
 
+  const docImageSrc = rawDocImage
+    ? `data:${rawDocImage.mimeType};base64,${rawDocImage.base64}`
+    : state.rawFileDataUrl ?? null;
+
   return (
     <div className="space-y-4">
       {state.filename && (
         <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/40 rounded-md px-3 py-2 border border-border">
           <FileText className="h-3.5 w-3.5 flex-shrink-0" />
           <span className="font-mono truncate">{state.filename}</span>
+        </div>
+      )}
+
+      {docImageSrc && (
+        <div className="rounded-xl border border-border bg-muted/20 overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setShowOriginalDoc(o => !o)}
+            className="flex items-center gap-2 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors w-full text-left px-4 py-3 hover:bg-muted/30"
+          >
+            <ImageIcon className="h-3.5 w-3.5 flex-shrink-0 text-primary" />
+            <span>Original Document Image</span>
+            <span className="ml-auto text-[10px]">{showOriginalDoc ? "▲ hide" : "▼ show"}</span>
+          </button>
+          {showOriginalDoc && (
+            <div className="border-t border-border p-3">
+              <img
+                src={docImageSrc}
+                alt="Original uploaded document"
+                className="w-full object-contain rounded-lg max-h-[600px] bg-white"
+              />
+            </div>
+          )}
         </div>
       )}
 
@@ -221,6 +251,21 @@ export default function FarmerReviewModal({
   const [saving, setSaving] = useState<string | null>(null);
   const [modalStep, setModalStep] = useState<"review" | "verify">("review");
   const [showRejectDialog, setShowRejectDialog] = useState(false);
+  const [docImages, setDocImages] = useState<Record<string, { base64: string; mimeType: string }>>({});
+
+  useEffect(() => {
+    if (!farmer.farmerId) return;
+    fetch(`/api/farmers/${farmer.farmerId}/documents`)
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then((data: { documents: { docType: string; base64: string; mimeType: string }[] }) => {
+        const map: Record<string, { base64: string; mimeType: string }> = {};
+        for (const d of data.documents ?? []) {
+          map[d.docType] = { base64: d.base64, mimeType: d.mimeType };
+        }
+        setDocImages(map);
+      })
+      .catch(() => {});
+  }, [farmer.farmerId]);
 
   const docStates: DocStates = useMemo(() => {
     const states = Object.fromEntries(
@@ -389,6 +434,7 @@ export default function FarmerReviewModal({
             state={docStates[activeTab as DocTypeId]}
             docId={activeTab as DocTypeId}
             lang={lang}
+            rawDocImage={docImages[activeTab as string] ?? null}
           />
         )}
 

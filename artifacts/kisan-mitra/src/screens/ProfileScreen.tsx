@@ -1,10 +1,34 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, SafeAreaView,
-  ScrollView, Alert, Platform,
+  ScrollView, Alert, Platform, Image, Modal, ActivityIndicator,
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { COLORS, FONT_SIZE, RADIUS, SHADOW, T } from '../constants';
+import { api, API_BASE } from '../api';
+
+interface DocImage {
+  docType: string;
+  base64: string;
+  mimeType: string;
+  uploadedAt: string;
+}
+
+const DOC_LABELS: Record<string, string> = {
+  aadhar: 'Aadhaar Card',
+  bank_passbook: 'Bank Passbook',
+  form7: 'Form 7 (7/12)',
+  form12: 'Form 12 (Pik Pahani)',
+  form8a: 'Form 8A',
+};
+
+const DOC_ICONS: Record<string, string> = {
+  aadhar: '🪪',
+  bank_passbook: '🏦',
+  form7: '📄',
+  form12: '🌾',
+  form8a: '📋',
+};
 
 function InfoRow({ label, value }: { label: string; value?: string }) {
   const v = value && value !== '—' ? value : '—';
@@ -56,10 +80,76 @@ const cardStyles = StyleSheet.create({
   cardTitle: { fontSize: FONT_SIZE.base, fontWeight: '800' },
 });
 
+function DocImageModal({ doc, onClose }: { doc: DocImage; onClose: () => void }) {
+  const label = DOC_LABELS[doc.docType] ?? doc.docType;
+  const imgSrc = `data:${doc.mimeType};base64,${doc.base64}`;
+
+  return (
+    <Modal visible animationType="slide" onRequestClose={onClose}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.primaryDark }}>
+        <View style={modalStyles.header}>
+          <Text style={modalStyles.headerTitle}>{DOC_ICONS[doc.docType] ?? '📄'}  {label}</Text>
+          <TouchableOpacity onPress={onClose} style={modalStyles.closeBtn} activeOpacity={0.7}>
+            <Text style={modalStyles.closeText}>✕ Close</Text>
+          </TouchableOpacity>
+        </View>
+        <ScrollView
+          style={{ flex: 1, backgroundColor: '#111' }}
+          contentContainerStyle={{ padding: 12 }}
+          maximumZoomScale={3}
+          minimumZoomScale={1}
+        >
+          <Image
+            source={{ uri: imgSrc }}
+            style={modalStyles.docImage}
+            resizeMode="contain"
+          />
+          <Text style={modalStyles.uploadedAt}>
+            Uploaded: {new Date(doc.uploadedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+          </Text>
+        </ScrollView>
+      </SafeAreaView>
+    </Modal>
+  );
+}
+
+const modalStyles = StyleSheet.create({
+  header: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 20, paddingVertical: 14,
+    backgroundColor: COLORS.primaryDark,
+    borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.1)',
+  },
+  headerTitle: { fontSize: FONT_SIZE.base, fontWeight: '800', color: COLORS.gold, flex: 1 },
+  closeBtn: {
+    backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: RADIUS.full,
+    paddingHorizontal: 14, paddingVertical: 7,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)',
+  },
+  closeText: { fontSize: FONT_SIZE.sm, color: COLORS.white, fontWeight: '700' },
+  docImage: { width: '100%', height: undefined, aspectRatio: 0.707, borderRadius: RADIUS.md },
+  uploadedAt: { color: 'rgba(255,255,255,0.5)', fontSize: FONT_SIZE.xs, textAlign: 'center', marginTop: 12 },
+});
+
 export default function ProfileScreen() {
   const { state, logout } = useAuth();
   const t = (k: string) => (T[state.lang] ?? T['en'])[k] ?? k;
   const farmer = state.farmer;
+
+  const [docImages, setDocImages] = useState<DocImage[]>([]);
+  const [loadingDocs, setLoadingDocs] = useState(false);
+  const [selectedDoc, setSelectedDoc] = useState<DocImage | null>(null);
+
+  const canViewDocs = farmer?.status === 'Active' || farmer?.status === 'Verified';
+
+  useEffect(() => {
+    if (!farmer?.farmerId || !canViewDocs) return;
+    setLoadingDocs(true);
+    api.getDocumentImages(farmer.farmerId)
+      .then(data => { setDocImages(data.documents ?? []); })
+      .catch(() => {})
+      .finally(() => setLoadingDocs(false));
+  }, [farmer?.farmerId, canViewDocs]);
 
   const initials = (farmer?.name && farmer.name !== '—')
     ? farmer.name.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase()
@@ -79,6 +169,10 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
+      {selectedDoc && (
+        <DocImageModal doc={selectedDoc} onClose={() => setSelectedDoc(null)} />
+      )}
+
       <View style={styles.topBar}>
         <View>
           <Text style={styles.topBarTitle}>कृषी सुविधा</Text>
@@ -149,6 +243,53 @@ export default function ProfileScreen() {
                 </View>
               </View>
             ))}
+          </SectionCard>
+        )}
+
+        {canViewDocs && (
+          <SectionCard title="My Original Documents" icon="🖼️" color={COLORS.gold}>
+            {loadingDocs ? (
+              <View style={styles.docsLoading}>
+                <ActivityIndicator size="small" color={COLORS.primary} />
+                <Text style={styles.docsLoadingText}>Loading documents…</Text>
+              </View>
+            ) : docImages.length === 0 ? (
+              <View style={styles.docsEmpty}>
+                <Text style={styles.docsEmptyText}>No document images available.</Text>
+              </View>
+            ) : (
+              docImages.map((doc, i) => {
+                const label = DOC_LABELS[doc.docType] ?? doc.docType;
+                const icon = DOC_ICONS[doc.docType] ?? '📄';
+                const imgSrc = `data:${doc.mimeType};base64,${doc.base64}`;
+                return (
+                  <TouchableOpacity
+                    key={i}
+                    style={styles.docImageCard}
+                    onPress={() => setSelectedDoc(doc)}
+                    activeOpacity={0.85}
+                  >
+                    <Image
+                      source={{ uri: imgSrc }}
+                      style={styles.docThumbnail}
+                      resizeMode="cover"
+                    />
+                    <View style={styles.docImageInfo}>
+                      <Text style={styles.docImageIcon}>{icon}</Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.docImageLabel}>{label}</Text>
+                        <Text style={styles.docImageDate}>
+                          {new Date(doc.uploadedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        </Text>
+                      </View>
+                      <View style={styles.viewBtn}>
+                        <Text style={styles.viewBtnText}>View</Text>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })
+            )}
           </SectionCard>
         )}
 
@@ -225,6 +366,31 @@ const styles = StyleSheet.create({
     borderWidth: 1.5, borderColor: COLORS.primary,
   },
   docBadgeText: { fontSize: FONT_SIZE.sm, color: COLORS.primary, fontWeight: '800' },
+  docsLoading: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 16 },
+  docsLoadingText: { color: COLORS.textMuted, fontSize: FONT_SIZE.sm },
+  docsEmpty: { paddingVertical: 12 },
+  docsEmptyText: { color: COLORS.textMuted, fontSize: FONT_SIZE.sm, textAlign: 'center' },
+  docImageCard: {
+    borderRadius: RADIUS.md, overflow: 'hidden', borderWidth: 1,
+    borderColor: COLORS.borderLight, marginBottom: 12, backgroundColor: COLORS.white,
+    ...SHADOW.sm,
+  },
+  docThumbnail: {
+    width: '100%', height: 160, backgroundColor: '#f5f5f5',
+  },
+  docImageInfo: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    paddingHorizontal: 12, paddingVertical: 10,
+    backgroundColor: COLORS.white, borderTopWidth: 1, borderTopColor: COLORS.borderLight,
+  },
+  docImageIcon: { fontSize: 22 },
+  docImageLabel: { fontSize: FONT_SIZE.sm, fontWeight: '700', color: COLORS.text },
+  docImageDate: { fontSize: FONT_SIZE.xs, color: COLORS.textMuted, marginTop: 2 },
+  viewBtn: {
+    backgroundColor: COLORS.primary, borderRadius: RADIUS.full,
+    paddingHorizontal: 14, paddingVertical: 6,
+  },
+  viewBtnText: { color: COLORS.white, fontSize: FONT_SIZE.xs, fontWeight: '700' },
   logoutBtn: {
     backgroundColor: COLORS.white, borderRadius: RADIUS.lg, paddingVertical: 16,
     alignItems: 'center', marginBottom: 20, borderWidth: 2, borderColor: COLORS.error, ...SHADOW.sm,

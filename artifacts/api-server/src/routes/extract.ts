@@ -40,6 +40,9 @@ interface JobMeta {
   profilePhone: string | null;
   /** Whether we've already persisted this completed extraction (idempotency). */
   saved: boolean;
+  /** Raw uploaded file stored as base64 so it can be shown alongside OCR output. */
+  rawFileBase64: string;
+  rawFileMimeType: string;
 }
 
 const jobs = new Map<string, JobMeta>();
@@ -292,6 +295,8 @@ router.post(
 
     gcJobs();
     const jobId = randomUUID().replace(/-/g, "");
+    const rawFileBase64 = file.buffer.toString("base64");
+    const rawFileMimeType = file.mimetype || "application/octet-stream";
     jobs.set(jobId, {
       documentTypeId: docDef.id,
       extractRequestId: extractResult.requestId,
@@ -299,6 +304,8 @@ router.post(
       createdAt: Date.now(),
       profilePhone,
       saved: false,
+      rawFileBase64,
+      rawFileMimeType,
     });
 
     res.json({
@@ -370,6 +377,7 @@ async function persistToProfile(
     const mobile = meta.profilePhone;
     const db = getDb();
     const farmersCol = db.collection("farmers");
+    const docImagesCol = db.collection("document_images");
 
     const topLevel = buildFarmerFieldsFromSection(mapped.section, mapped.data as Record<string, unknown>);
     const docEntry = {
@@ -383,10 +391,11 @@ async function persistToProfile(
 
     const existing = await farmersCol.findOne({ mobile }, { projection: { _id: 0, farmerId: 1 } });
 
+    let resolvedFarmerId: string;
     if (!existing) {
-      const farmerId = await getNextFarmerId(farmersCol);
+      resolvedFarmerId = await getNextFarmerId(farmersCol);
       await farmersCol.insertOne({
-        farmerId,
+        farmerId: resolvedFarmerId,
         mobile,
         status: "Draft",
         source: "mobile_ocr",
@@ -406,6 +415,7 @@ async function persistToProfile(
         ...topLevel,
       });
     } else {
+      resolvedFarmerId = String(existing["farmerId"] ?? "");
       const updateDoc: Record<string, unknown> = {
         [`ocr.${mapped.section}`]: mapped.data,
         [`extractionData.${docDef.id}`]: extractionEntry,
@@ -420,6 +430,24 @@ async function persistToProfile(
           $set: updateDoc,
           $push: { docs: docEntry } as Record<string, unknown>,
         },
+      );
+    }
+
+    // Persist the raw uploaded file so it can be shown alongside OCR results.
+    if (meta.rawFileBase64) {
+      await docImagesCol.updateOne(
+        { mobile, docType: docDef.id },
+        {
+          $set: {
+            mobile,
+            farmerId: resolvedFarmerId,
+            docType: docDef.id,
+            base64: meta.rawFileBase64,
+            mimeType: meta.rawFileMimeType,
+            uploadedAt: now,
+          },
+        },
+        { upsert: true },
       );
     }
 
@@ -625,6 +653,8 @@ router.get("/extract/:requestId", async (req, res): Promise<void> => {
     raw_tables: rawTables,
     text_blocks: textBlocks,
     aadhar_photo: aadharPhoto,
+    raw_file_base64: meta.rawFileBase64 ?? null,
+    raw_file_mime_type: meta.rawFileMimeType ?? null,
     profile: meta.profilePhone
       ? {
           phone: meta.profilePhone,

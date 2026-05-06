@@ -564,6 +564,8 @@ export interface ExtractionState {
   textBlocks: string[];
   aadharPhoto: { base64: string; mimeType: string } | null;
   error: string | null;
+  /** Data URL of the raw uploaded file (captured locally before upload) */
+  rawFileDataUrl?: string | null;
 }
 
 export const DEFAULT_STATE: ExtractionState = {
@@ -576,6 +578,7 @@ export const DEFAULT_STATE: ExtractionState = {
   textBlocks: [],
   aadharPhoto: null,
   error: null,
+  rawFileDataUrl: null,
 };
 
 export interface FarmerProfile {
@@ -1144,7 +1147,16 @@ function DocUploadCard({
   const Icon = card.icon;
 
   const handleFile = useCallback(async (file: File) => {
-    onStateChange({ ...DEFAULT_STATE, status: "uploading", filename: file.name });
+    let rawFileDataUrl: string | null = null;
+    try {
+      rawFileDataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    } catch { /* non-fatal */ }
+    onStateChange({ ...DEFAULT_STATE, status: "uploading", filename: file.name, rawFileDataUrl });
     const uploadUrl = `${BASE_URL}/api/extract`;
     const body = new FormData();
     body.append("file", file);
@@ -1297,6 +1309,20 @@ function DocUploadCard({
               {state.rawTables.length > 0 ? ` · ${translateValue(String(state.rawTables.length), lang)} ${ui("table", lang)}` : ""}
               {" · "}{ui("reviewNext", lang)}
             </span>
+          </div>
+        )}
+
+        {isComplete && state.rawFileDataUrl && (
+          <div className="mt-3 border-t border-border pt-3">
+            <p className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1.5">
+              <FileText className="h-3.5 w-3.5" />
+              Original Document
+            </p>
+            <img
+              src={state.rawFileDataUrl}
+              alt={`${card.label} original`}
+              className="w-full max-h-64 object-contain rounded-lg border border-border bg-muted/20 shadow-sm"
+            />
           </div>
         )}
       </div>

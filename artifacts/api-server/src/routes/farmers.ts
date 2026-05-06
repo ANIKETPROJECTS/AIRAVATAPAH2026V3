@@ -150,6 +150,22 @@ router.post("/farmers/submit-registration", async (req, res, next) => {
   }
 });
 
+router.get("/farmers/:farmerId/documents", async (req, res, next) => {
+  try {
+    const db = getDb();
+    const col = db.collection("document_images");
+    const docs = await col
+      .find(
+        { farmerId: req.params["farmerId"] },
+        { projection: { _id: 0, docType: 1, mimeType: 1, base64: 1, uploadedAt: 1 } },
+      )
+      .toArray();
+    res.json({ documents: docs });
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.delete("/farmers", async (_req, res, next) => {
   try {
     const db = getDb();

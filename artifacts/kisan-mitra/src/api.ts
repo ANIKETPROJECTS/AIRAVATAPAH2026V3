@@ -150,4 +150,9 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ mobile, pushToken }),
     }),
+
+  getDocumentImages: (farmerId: string) =>
+    request<{ documents: { docType: string; base64: string; mimeType: string; uploadedAt: string }[] }>(
+      `/farmers/${farmerId}/documents`,
+    ),
 };
