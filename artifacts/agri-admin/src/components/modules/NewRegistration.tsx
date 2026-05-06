@@ -581,7 +581,37 @@ export function DocLightbox({ src, label, onClose }: { src: string; label?: stri
   const dragging = useRef(false);
   const dragStart = useRef({ x: 0, y: 0, tx: 0, ty: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
+  const scaleRef = useRef(1);
 
+  // Keep scaleRef in sync so the native wheel handler can read latest value
+  useEffect(() => { scaleRef.current = scale; }, [scale]);
+
+  // Lock body scroll and wire up native wheel listener (passive: false required for preventDefault)
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const el = containerRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const delta = e.deltaY < 0 ? ZOOM_STEP : -ZOOM_STEP;
+      setScale(s => {
+        const next = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, s + delta));
+        scaleRef.current = next;
+        return next;
+      });
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+
+    return () => {
+      document.body.style.overflow = prev;
+      el.removeEventListener("wheel", onWheel);
+    };
+  }, []);
+
+  // Keyboard: Esc closes
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", handler);
@@ -590,15 +620,8 @@ export function DocLightbox({ src, label, onClose }: { src: string; label?: stri
 
   const resetZoom = () => { setScale(1); setTranslate({ x: 0, y: 0 }); };
 
-  const handleWheel = (e: React.WheelEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const delta = e.deltaY < 0 ? ZOOM_STEP : -ZOOM_STEP;
-    setScale(s => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, s + delta)));
-  };
-
   const handleMouseDown = (e: React.MouseEvent) => {
-    if (scale <= 1) return;
+    if (scaleRef.current <= 1) return;
     e.preventDefault();
     dragging.current = true;
     dragStart.current = { x: e.clientX, y: e.clientY, tx: translate.x, ty: translate.y };
@@ -660,7 +683,6 @@ export function DocLightbox({ src, label, onClose }: { src: string; label?: stri
       <div
         ref={containerRef}
         className="flex-1 overflow-hidden flex items-center justify-center"
-        onWheel={handleWheel}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
