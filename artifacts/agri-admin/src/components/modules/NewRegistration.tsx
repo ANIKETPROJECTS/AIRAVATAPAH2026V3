@@ -1885,15 +1885,42 @@ function DocReviewPanel({
         </div>
       )}
 
-      <div className="rounded-xl border border-border bg-card p-5 mb-6">
-        <FieldsTable
-          sections={state.sections}
-          rawTables={state.rawTables}
-          textBlocks={state.textBlocks}
-          docId={card.id}
-          lang={lang}
-        />
-      </div>
+      {state.rawFileDataUrl ? (
+        <div className="flex gap-5 mb-6 items-start">
+          <div className="w-[280px] flex-shrink-0 sticky top-4">
+            <div className="rounded-xl border border-border bg-white overflow-hidden shadow-sm">
+              <div className="flex items-center gap-2 px-3 py-2 border-b border-border bg-muted/30">
+                <FileText className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                <span className="text-xs font-semibold text-muted-foreground truncate">Original Document</span>
+              </div>
+              <img
+                src={state.rawFileDataUrl}
+                alt="Uploaded document"
+                className="w-full object-contain max-h-[520px] bg-white"
+              />
+            </div>
+          </div>
+          <div className="flex-1 min-w-0 rounded-xl border border-border bg-card p-5">
+            <FieldsTable
+              sections={state.sections}
+              rawTables={state.rawTables}
+              textBlocks={state.textBlocks}
+              docId={card.id}
+              lang={lang}
+            />
+          </div>
+        </div>
+      ) : (
+        <div className="rounded-xl border border-border bg-card p-5 mb-6">
+          <FieldsTable
+            sections={state.sections}
+            rawTables={state.rawTables}
+            textBlocks={state.textBlocks}
+            docId={card.id}
+            lang={lang}
+          />
+        </div>
+      )}
 
       <div className="flex items-center justify-between pt-4 border-t border-border">
         <button
