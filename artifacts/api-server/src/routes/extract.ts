@@ -349,28 +349,12 @@ async function persistToProfile(
   if (!meta.profilePhone) {
     return { saved: false, section: null, error: null };
   }
-  if (meta.saved) {
-    const mapped = mapExtractionToSection(docDef.id, presented, markdown, marker);
-    return { saved: true, section: mapped?.section ?? null, error: null };
-  }
 
   const mapped = mapExtractionToSection(docDef.id, presented, markdown, marker);
-  if (!mapped) {
-    return { saved: false, section: null, error: "Could not map extraction to a profile section." };
-  }
-  if (Object.keys(mapped.data).length === 0) {
-    return { saved: false, section: mapped.section, error: "Extraction returned no usable fields to save." };
-  }
 
-  // Build the extractionData entry that matches what the Admin portal saves,
-  // so the FarmerReviewModal can display fully-populated fields for mobile uploads.
-  const extractionEntry = {
-    filename: `${docDef.id}`,
-    sections: presented ? presented.sections : [],
-    rawTables,
-    textBlocks,
-    aadharPhoto,
-  };
+  if (meta.saved) {
+    return { saved: true, section: mapped?.section ?? null, error: null };
+  }
 
   try {
     const now = new Date().toISOString();
@@ -379,18 +363,8 @@ async function persistToProfile(
     const farmersCol = db.collection("farmers");
     const docImagesCol = db.collection("document_images");
 
-    const topLevel = buildFarmerFieldsFromSection(mapped.section, mapped.data as Record<string, unknown>);
-    const docEntry = {
-      name: docDef.label,
-      fileName: `${docDef.id}.pdf`,
-      size: "—",
-      status: "uploaded",
-      section: mapped.section,
-      extractedAt: now,
-    };
-
+    // Step 1: Ensure farmer record exists and get farmerId.
     const existing = await farmersCol.findOne({ mobile }, { projection: { _id: 0, farmerId: 1 } });
-
     let resolvedFarmerId: string;
     if (!existing) {
       resolvedFarmerId = await getNextFarmerId(farmersCol);
@@ -409,31 +383,15 @@ async function persistToProfile(
         land: "—",
         addedAt: now,
         updatedAt: now,
-        ocr: { [mapped.section]: mapped.data },
-        extractionData: { [docDef.id]: extractionEntry },
-        docs: [docEntry],
-        ...topLevel,
+        ocr: {},
+        extractionData: {},
+        docs: [],
       });
     } else {
       resolvedFarmerId = String(existing["farmerId"] ?? "");
-      const updateDoc: Record<string, unknown> = {
-        [`ocr.${mapped.section}`]: mapped.data,
-        [`extractionData.${docDef.id}`]: extractionEntry,
-        updatedAt: now,
-      };
-      for (const [k, v] of Object.entries(topLevel)) {
-        if (v !== undefined && v !== null && v !== "") updateDoc[k] = v;
-      }
-      await farmersCol.updateOne(
-        { mobile },
-        {
-          $set: updateDoc,
-          $push: { docs: docEntry } as Record<string, unknown>,
-        },
-      );
     }
 
-    // Persist the raw uploaded file so it can be shown alongside OCR results.
+    // Step 2: Always persist the raw image — even when field extraction yielded nothing.
     if (meta.rawFileBase64) {
       await docImagesCol.updateOne(
         { mobile, docType: docDef.id },
@@ -451,12 +409,55 @@ async function persistToProfile(
       );
     }
 
+    // Step 3: Save extracted fields only when we have meaningful data.
+    if (!mapped || Object.keys(mapped.data).length === 0) {
+      meta.saved = true;
+      return {
+        saved: true,
+        section: mapped?.section ?? null,
+        error: mapped ? "Extraction returned no usable fields to save." : "Could not map extraction to a profile section.",
+      };
+    }
+
+    const extractionEntry = {
+      filename: `${docDef.id}`,
+      sections: presented ? presented.sections : [],
+      rawTables,
+      textBlocks,
+      aadharPhoto,
+    };
+    const topLevel = buildFarmerFieldsFromSection(mapped.section, mapped.data as Record<string, unknown>);
+    const docEntry = {
+      name: docDef.label,
+      fileName: `${docDef.id}.pdf`,
+      size: "—",
+      status: "uploaded",
+      section: mapped.section,
+      extractedAt: now,
+    };
+
+    const updateDoc: Record<string, unknown> = {
+      [`ocr.${mapped.section}`]: mapped.data,
+      [`extractionData.${docDef.id}`]: extractionEntry,
+      updatedAt: now,
+    };
+    for (const [k, v] of Object.entries(topLevel)) {
+      if (v !== undefined && v !== null && v !== "") updateDoc[k] = v;
+    }
+    await farmersCol.updateOne(
+      { mobile },
+      {
+        $set: updateDoc,
+        $push: { docs: docEntry } as Record<string, unknown>,
+      },
+    );
+
     meta.saved = true;
     return { saved: true, section: mapped.section, error: null };
   } catch (err) {
     return {
       saved: false,
-      section: mapped.section,
+      section: mapped?.section ?? null,
       error: err instanceof Error ? err.message : "Failed to save to farmers.",
     };
   }

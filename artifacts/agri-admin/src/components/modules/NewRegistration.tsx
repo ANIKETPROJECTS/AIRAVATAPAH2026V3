@@ -8,7 +8,7 @@ import {
   Sparkles, AlertTriangle, CircleAlert, Info, ShieldCheck,
   X, ZoomIn, Image,
 } from "lucide-react";
-import { apiCreateFarmer, notifyFarmerChange } from "@/data/farmerApi";
+import { apiCreateFarmer, apiSaveDocumentImages, notifyFarmerChange } from "@/data/farmerApi";
 
 
 const BASE_URL = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
@@ -2898,7 +2898,22 @@ export default function NewRegistration() {
       source: "ocr",
       extractionData,
       farmerProfile: profile as unknown as Record<string, string>,
-    }).then(() => {
+    }).then((farmer) => {
+      // Save raw document images to MongoDB so they appear in review/registry views
+      const imageDocs = DOC_CARDS
+        .filter(c => docStates[c.id].status === "complete" && docStates[c.id].rawFileDataUrl)
+        .map(c => {
+          const dataUrl = docStates[c.id].rawFileDataUrl!;
+          const commaIdx = dataUrl.indexOf(",");
+          const header = commaIdx > -1 ? dataUrl.slice(0, commaIdx) : "";
+          const base64 = commaIdx > -1 ? dataUrl.slice(commaIdx + 1) : dataUrl;
+          const mimeMatch = header.match(/data:([^;]+);base64/);
+          const mimeType = mimeMatch ? mimeMatch[1] : "application/octet-stream";
+          return { docType: c.id, base64, mimeType };
+        });
+      if (imageDocs.length > 0) {
+        apiSaveDocumentImages(farmer.farmerId, imageDocs).catch(() => {});
+      }
       notifyFarmerChange();
     }).catch(() => {});
     setApproved(true);

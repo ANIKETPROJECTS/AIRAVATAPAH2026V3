@@ -134,6 +134,18 @@ export async function apiDeleteAllFarmers(): Promise<{ deleted: number }> {
   return res.json();
 }
 
+export async function apiSaveDocumentImages(
+  farmerId: string,
+  documents: Array<{ docType: string; base64: string; mimeType: string }>,
+): Promise<void> {
+  const res = await fetch(`${API}/farmers/${encodeURIComponent(farmerId)}/documents`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ documents }),
+  });
+  if (!res.ok) throw new Error("Failed to save document images");
+}
+
 export function notifyFarmerChange() {
   window.dispatchEvent(new CustomEvent("farmer-registry-changed"));
 }

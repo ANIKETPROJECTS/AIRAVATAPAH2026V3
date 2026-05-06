@@ -166,6 +166,49 @@ router.get("/farmers/:farmerId/documents", async (req, res, next) => {
   }
 });
 
+router.post("/farmers/:farmerId/documents", async (req, res, next) => {
+  try {
+    const db = getDb();
+    const farmersCol = db.collection("farmers");
+    const docImagesCol = db.collection("document_images");
+    const farmerId = req.params["farmerId"];
+
+    const farmer = await farmersCol.findOne({ farmerId }, { projection: { _id: 0, mobile: 1 } });
+    if (!farmer) { res.status(404).json({ error: "Farmer not found" }); return; }
+    const mobile = typeof farmer["mobile"] === "string" ? farmer["mobile"] : "";
+
+    const docs = Array.isArray(req.body?.documents) ? req.body.documents : [];
+    const now = new Date().toISOString();
+
+    await Promise.all(
+      docs
+        .filter((d: { docType?: string; base64?: string; mimeType?: string }) =>
+          typeof d.docType === "string" && typeof d.base64 === "string" && d.base64.length > 0
+        )
+        .map((d: { docType: string; base64: string; mimeType: string }) =>
+          docImagesCol.updateOne(
+            { farmerId, docType: d.docType },
+            {
+              $set: {
+                farmerId,
+                mobile,
+                docType: d.docType,
+                base64: d.base64,
+                mimeType: d.mimeType || "application/octet-stream",
+                uploadedAt: now,
+              },
+            },
+            { upsert: true },
+          )
+        )
+    );
+
+    res.json({ saved: docs.length });
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.delete("/farmers", async (_req, res, next) => {
   try {
     const db = getDb();
