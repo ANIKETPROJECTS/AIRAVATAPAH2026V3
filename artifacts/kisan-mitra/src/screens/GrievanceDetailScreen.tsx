@@ -164,14 +164,7 @@ export default function GrievanceDetailScreen() {
               <Text style={[styles.statusPillText, { color: statusColor(grievance.status) }]}>{grievance.status}</Text>
             </View>
           </View>
-          <View style={styles.metaRow}>
-            <View style={[styles.priorityPill, grievance.priority === 'High' ? styles.priorityHigh : grievance.priority === 'Medium' ? styles.priorityMed : styles.priorityLow]}>
-              <Text style={[styles.priorityText, grievance.priority === 'High' ? styles.priorityHighText : grievance.priority === 'Medium' ? styles.priorityMedText : styles.priorityLowText]}>
-                {grievance.priority === 'High' ? '🔴' : grievance.priority === 'Medium' ? '🟡' : '🟢'} {grievance.priority}
-              </Text>
-            </View>
-            <Text style={styles.metaDate}>Filed: {new Date(grievance.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</Text>
-          </View>
+          <Text style={styles.metaDate}>Filed: {new Date(grievance.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</Text>
         </View>
 
         {/* Edit form OR view */}

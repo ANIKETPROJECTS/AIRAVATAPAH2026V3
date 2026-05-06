@@ -77,12 +77,46 @@ function GrievanceDetailPage({
     finally { setSaving(false); }
   }
 
+  async function sendNotification(title: string, body: string) {
+    if (!gr.mobile) return;
+    try {
+      await fetch("/api/notifications/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mobile: gr.mobile,
+          farmerId: gr.farmerId ?? undefined,
+          type: "grievance",
+          title,
+          body,
+          data: { grievanceId: gr.grievanceId },
+        }),
+      });
+    } catch { /* non-fatal */ }
+  }
+
   async function handleStatusChange(newStatus: string, extra?: { resolvedAt?: string; rejectionReason?: string }) {
     setSaving(true);
     try {
       const updated = await apiUpdateGrievance(gr.grievanceId, { status: newStatus, ...extra });
       onUpdated(updated);
       showToast(`✅ Status updated to ${newStatus}`);
+      if (newStatus === "Resolved") {
+        await sendNotification(
+          "Grievance Resolved ✅",
+          `Your grievance ${gr.grievanceId} regarding ${gr.category} has been resolved.${reply.trim() ? ` Message: ${reply.trim()}` : ""}`
+        );
+      } else if (newStatus === "Escalated") {
+        await sendNotification(
+          "Grievance Escalated ⬆️",
+          `Your grievance ${gr.grievanceId} regarding ${gr.category} has been escalated for priority handling.`
+        );
+      } else if (newStatus === "In Progress") {
+        await sendNotification(
+          "Grievance Update 🔄",
+          `Your grievance ${gr.grievanceId} regarding ${gr.category} is now being actively processed.`
+        );
+      }
     } catch { showToast("❌ Failed to update status"); }
     finally { setSaving(false); }
   }
@@ -111,6 +145,10 @@ function GrievanceDetailPage({
       setShowRejectInput(false);
       setRejectReason("");
       showToast("❌ Grievance rejected");
+      await sendNotification(
+        "Grievance Update ❌",
+        `Your grievance ${gr.grievanceId} regarding ${gr.category} has been reviewed. Reason: ${rejectReason.trim()}`
+      );
     } catch { showToast("❌ Failed to reject grievance"); }
     finally { setRejectSaving(false); }
   }
