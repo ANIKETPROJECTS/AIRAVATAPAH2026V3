@@ -53,7 +53,11 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
   - `POST /api/notifications/send` — create + push notification
   - `PATCH /api/notifications/:id/read` — mark notification as read
   - `PATCH /api/notifications/read-all` — mark all notifications read (body: `mobile`)
-- **MongoDB**: Atlas cluster (`apnaapp` DB); collections: `farmers`, `users`, `schemes`, `notifications`, `push_tokens`, `otps`, `extract_requests`
+  - `GET /api/grievances` — list grievances (query: `mobile`, `farmerId`, `status`, `search`)
+  - `GET /api/grievances/:id` — get single grievance
+  - `POST /api/grievances` — create grievance (body: `mobile`, `farmerId`, `farmerName`, `category`, `customCategory`, `subject`, `description`, `attachments[]`, `source`, `raisedBy`, `priority`)
+  - `PATCH /api/grievances/:id` — update grievance (body: `status`, `adminReply`, `adminNotes`, `priority`, `assignedTo`, `resolvedAt`)
+- **MongoDB**: Atlas cluster (`apnaapp` DB); collections: `farmers`, `users`, `schemes`, `notifications`, `push_tokens`, `otps`, `extract_requests`, `grievances`
 - **Secrets**: `DATALAB_API_KEY`, `MONGODB_URI`, `SESSION_SECRET`
 
 ### Kisan Mitra — Farmer Mobile App (`artifacts/kisan-mitra`)
@@ -83,7 +87,8 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
   - `SchemesScreen` (tab) — Dark green top bar, tab switcher (Schemes/Insurance/Subsidies), filter chips, eligible badges
   - `NotificationsScreen` (tab) — Dark green top bar, unread banner, colored notification cards with type icons
   - `AnalyticsScreen` (tab) — NEW: Farm overview stats, scheme statistics, category bar chart, registration timeline, doc progress
-  - `ProfileScreen` (tab) — Dark green hero with gold farmer ID badge, color-coded section cards, green KYC badge
+  - `ProfileScreen` (tab) — Dark green hero with gold farmer ID badge, color-coded section cards, green KYC badge; "📢 Raise Grievance" gold button navigates to GrievanceScreen
+  - `GrievanceScreen` (stack) — Category chips (7 options + Other), subject auto-fill, description textarea, optional attachment; shows "My Previous Grievances" list from API
 - **API URL Strategy**: `getApiBase()` in `src/api.ts` — if `localhost` → `http://localhost:8000/api`; otherwise `${protocol}//${hostname}:8000/api` (works in Replit since all ports are accessible at the same hostname)
 - **Key files**: `src/api.ts`, `src/types.ts`, `src/constants.ts`, `src/context/AuthContext.tsx`, `src/navigation/AppNavigator.tsx`, `src/screens/`
 

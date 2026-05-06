@@ -3,10 +3,13 @@ import {
   View, Text, TouchableOpacity, StyleSheet, SafeAreaView,
   ScrollView, Alert,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../api';
 import { COLORS, FONT_SIZE, RADIUS, SHADOW, T } from '../constants';
 import { Notification } from '../types';
+import type { RootStackParamList } from '../navigation/AppNavigator';
 
 const QUICK_ACTIONS = [
   { key: 'applyScheme', icon: '📋', color: COLORS.primary },
@@ -20,6 +23,7 @@ export default function HomeScreen() {
   const t = (k: string) => (T[state.lang] ?? T['en'])[k] ?? k;
   const farmer = state.farmer;
   const [recentNotifs, setRecentNotifs] = useState<Notification[]>([]);
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
   useEffect(() => {
     if (state.mobile) {
@@ -34,6 +38,10 @@ export default function HomeScreen() {
     : '??';
 
   function handleQuickAction(key: string) {
+    if (key === 'raiseGrievance') {
+      navigation.navigate('Grievance');
+      return;
+    }
     Alert.alert(t(key), 'This feature is coming soon. Please visit your nearest agriculture office or use the web portal for now.');
   }
 

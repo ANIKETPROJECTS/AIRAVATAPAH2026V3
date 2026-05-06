@@ -18,6 +18,7 @@ import SchemesScreen from '../screens/SchemesScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import AnalyticsScreen from '../screens/AnalyticsScreen';
+import GrievanceScreen from '../screens/GrievanceScreen';
 
 export type RootStackParamList = {
   Welcome: undefined;
@@ -28,6 +29,7 @@ export type RootStackParamList = {
   Rejected: undefined;
   Verified: undefined;
   Main: undefined;
+  Grievance: undefined;
 };
 
 export type TabParamList = {
@@ -163,9 +165,6 @@ export default function AppNavigator() {
   const isVerified = farmerStatus === 'Active' || farmerStatus === 'Verified';
   const hasDocs = (state.farmer?.docs ?? []).length > 0;
 
-  // Determine where to land after fresh login for a returning verified user:
-  // - If just logged in and already verified (returning user, not first-time verification) → Profile tab
-  // - Otherwise → Home tab
   const isReturningVerifiedLogin = state.justLoggedIn && isVerified && !showCongrats;
   const initialTab: 'Home' | 'Profile' = isReturningVerifiedLogin ? 'Profile' : 'Home';
 
@@ -183,9 +182,12 @@ export default function AppNavigator() {
             {() => <VerifiedScreen onDone={() => setShowCongrats(false)} />}
           </Stack.Screen>
         ) : isVerified ? (
-          <Stack.Screen name="Main">
-            {() => <MainTabs initialTab={initialTab} />}
-          </Stack.Screen>
+          <>
+            <Stack.Screen name="Main">
+              {() => <MainTabs initialTab={initialTab} />}
+            </Stack.Screen>
+            <Stack.Screen name="Grievance" component={GrievanceScreen} />
+          </>
         ) : farmerStatus === 'Pending' ? (
           <Stack.Screen name="Pending" component={PendingScreen} />
         ) : (farmerStatus === 'Rejected' || farmerStatus === 'Cancelled') && state.reuploadRequested ? (
@@ -195,7 +197,6 @@ export default function AppNavigator() {
         ) : (farmerStatus === 'Rejected' || farmerStatus === 'Cancelled') ? (
           <Stack.Screen name="Rejected" component={RejectedScreen} />
         ) : hasDocs ? (
-          // Has docs but not yet in Pending status → show pending/status screen
           <Stack.Screen name="Pending" component={PendingScreen} />
         ) : (
           <Stack.Screen name="DocumentUpload" component={DocumentUploadScreen} />

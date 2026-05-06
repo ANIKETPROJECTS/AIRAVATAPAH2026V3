@@ -1,239 +1,270 @@
-import { useState, useMemo } from "react";
-import { X, Check, Lock, ArrowLeft } from "lucide-react";
-import { farmers, officers } from "@/data/dummyData";
+import { useState, useMemo, useEffect } from "react";
+import { X, Search, Paperclip, Lock } from "lucide-react";
+import { apiCreateGrievance } from "@/data/grievanceApi";
+import { apiFetchFarmers, type FarmerRecord } from "@/data/farmerApi";
 
-const modes = ["In-Person", "Phone Call", "Email", "Portal", "Mobile App", "Post"];
-const categories = ["Subsidy Delay", "Wrong Beneficiary", "Document Rejection", "Officer Misconduct", "Technical Error", "Scheme Eligibility Dispute", "Insurance Claim Rejection", "Other"];
-const subCategories: Record<string, string[]> = {
-  "Subsidy Delay": ["PM-KISAN Delay", "PMFBY Premium Refund", "KCC Disbursement"],
-  "Wrong Beneficiary": ["Duplicate Entry", "Wrong Account", "Identity Mismatch"],
-  "Document Rejection": ["Aadhaar Mismatch", "Land Record Issue", "Bank Document"],
-  "Officer Misconduct": ["Bribery Allegation", "Negligence", "Rude Behavior"],
-  "Technical Error": ["Portal Error", "Payment Gateway", "OTP Issue"],
-  "Scheme Eligibility Dispute": ["Eligibility Criteria", "Disqualification"],
-  "Insurance Claim Rejection": ["Claim Amount Dispute", "Coverage Issue", "Timeline Dispute"],
-  "Other": ["General Query", "Feedback", "Other"],
+const CATEGORIES = [
+  "Subsidy Delay", "Wrong Beneficiary", "Document Issue",
+  "Officer Misconduct", "Technical Error", "Portal/App Issue", "Other",
+];
+
+const SUBJECT_MAP: Record<string, string> = {
+  "Subsidy Delay": "Subsidy amount has not been credited to farmer's account",
+  "Wrong Beneficiary": "Farmer has been incorrectly listed as wrong beneficiary",
+  "Document Issue": "Issue with submitted or verified documents",
+  "Officer Misconduct": "Complaint regarding officer misconduct",
+  "Technical Error": "Technical error in the system or portal",
+  "Portal/App Issue": "Issue with the portal or mobile application",
+  "Other": "",
 };
-const resolutionModes = ["Call Back", "Written Response", "In-person Meeting", "Portal Update"];
-
-const officerWorkload: Record<string, number> = { "Priya Desai": 4, "Ravi Kulkarni": 7, "Amit Jadhav": 2 };
 
 interface Props {
   onClose: () => void;
   onSuccess: (msg: string) => void;
+  adminName: string;
 }
 
-export default function GrievanceFilingForm({ onClose, onSuccess }: Props) {
+export default function GrievanceFilingForm({ onClose, onSuccess, adminName }: Props) {
+  const [allFarmers, setAllFarmers] = useState<FarmerRecord[]>([]);
   const [farmerSearch, setFarmerSearch] = useState("");
-  const [selectedFarmer, setSelectedFarmer] = useState<typeof farmers[0] | null>(null);
-  const [mode, setMode] = useState("");
-  const [grCategory, setGrCategory] = useState("");
-  const [subCat, setSubCat] = useState("");
+  const [selectedFarmer, setSelectedFarmer] = useState<FarmerRecord | null>(null);
+  const [useManual, setUseManual] = useState(false);
+  const [manualMobile, setManualMobile] = useState("");
+  const [manualName, setManualName] = useState("");
+  const [category, setCategory] = useState("");
+  const [customCategory, setCustomCategory] = useState("");
   const [subject, setSubject] = useState("");
   const [description, setDescription] = useState("");
-  const [grDate, setGrDate] = useState("");
-  const [prevRef, setPrevRef] = useState("");
-  const [priority, setPriority] = useState("");
-  const [aiSuggestedPriority, setAiSuggestedPriority] = useState("");
-  const [resolutionMode, setResolutionMode] = useState("");
-  const [assignTo, setAssignTo] = useState("");
-  const [docUploaded, setDocUploaded] = useState(false);
+  const [priority, setPriority] = useState("Medium");
+  const [assignedTo, setAssignedTo] = useState("");
   const [internalNotes, setInternalNotes] = useState("");
+  const [attachment, setAttachment] = useState<{ name: string; base64: string; mimeType: string } | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [showResult, setShowResult] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    apiFetchFarmers().then(setAllFarmers).catch(() => {});
+  }, []);
 
   const suggestions = useMemo(() => {
-    if (!farmerSearch) return [];
-    return farmers.filter(f => f.name.toLowerCase().includes(farmerSearch.toLowerCase()) || f.id.includes(farmerSearch));
-  }, [farmerSearch]);
+    if (!farmerSearch.trim()) return [];
+    const q = farmerSearch.trim().toLowerCase();
+    return allFarmers.filter(f =>
+      f.name?.toLowerCase().includes(q) ||
+      f.farmerId?.toLowerCase().includes(q) ||
+      f.mobile?.includes(q)
+    ).slice(0, 6);
+  }, [allFarmers, farmerSearch]);
 
-  const triggerAiPriority = (desc: string) => {
-    setDescription(desc);
-    if (desc.length > 20 && !priority) {
-      const keywords = ["urgent", "delay", "months", "misconduct", "bribe"];
-      const isHigh = keywords.some(k => desc.toLowerCase().includes(k));
-      const suggested = isHigh ? "High" : "Medium";
-      setAiSuggestedPriority(suggested);
-      setPriority(suggested);
-    }
-  };
-
-  const calcSla = () => {
-    if (!grDate || !priority) return "";
-    const d = new Date(grDate);
-    const days = priority === "High" ? 2 : priority === "Medium" ? 3 : 5;
-    d.setDate(d.getDate() + days);
-    return `SLA: ${days} working days = ${d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}`;
-  };
-
-  const handleSubmit = () => {
-    setSubmitting(true);
-    setTimeout(() => { setSubmitting(false); setShowResult(true); }, 2000);
-  };
-
-  const inputCls = "w-full px-3 py-2.5 text-sm bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary/50";
-  const labelCls = "block text-sm font-medium mb-1";
-
-  if (showResult) {
-    const grId = `GR-${String(Math.floor(Math.random() * 9000) + 1000).padStart(4, "0")}`;
-    return (
-      <div className="fixed inset-0 z-50 bg-background overflow-y-auto">
-        <div className="max-w-2xl mx-auto p-6 md:p-10">
-          <div className="text-center mb-4">
-            <div className="w-20 h-20 mx-auto bg-success/10 rounded-full flex items-center justify-center mb-4 animate-scale-in"><Check className="h-10 w-10 text-success" /></div>
-            <h2 className="font-heading text-2xl">Grievance Filed</h2>
-          </div>
-          <div className="space-y-2 text-sm mb-4">
-            <div><strong>Grievance ID:</strong> {grId}</div>
-            <div><strong>Category:</strong> {grCategory}</div>
-            <div><strong>Assigned To:</strong> {assignTo || "Unassigned"}</div>
-            <div><strong>SLA:</strong> {calcSla()}</div>
-          </div>
-          <button onClick={() => { onClose(); onSuccess(`✅ Grievance ${grId} filed — SLA timer started`); }} className="w-full text-sm py-2.5 rounded-lg bg-secondary text-secondary-foreground">Close</button>
-        </div>
-      </div>
-    );
+  function handleCategoryChange(cat: string) {
+    setCategory(cat);
+    setSubject(SUBJECT_MAP[cat] ?? "");
+    if (cat !== "Other") setCustomCategory("");
   }
 
+  async function handleAttach() {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*,application/pdf";
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const dataUrl = reader.result as string;
+        setAttachment({ name: file.name, base64: dataUrl.split(",")[1] ?? "", mimeType: file.type });
+      };
+      reader.readAsDataURL(file);
+    };
+    input.click();
+  }
+
+  async function handleSubmit() {
+    setError("");
+    const mobile = useManual ? manualMobile.trim() : (selectedFarmer?.mobile ?? "");
+    const farmerName = useManual ? (manualName.trim() || null) : (selectedFarmer?.name ?? null);
+    const farmerId = useManual ? null : (selectedFarmer?.farmerId ?? null);
+
+    if (!mobile) { setError("Please select a farmer or enter a mobile number."); return; }
+    if (!category) { setError("Please select a category."); return; }
+    if (!subject.trim()) { setError("Please enter a subject."); return; }
+    if (!description.trim()) { setError("Please describe the grievance."); return; }
+
+    setSubmitting(true);
+    try {
+      const gr = await apiCreateGrievance({
+        mobile, farmerId, farmerName,
+        category: category === "Other" && customCategory.trim() ? customCategory.trim() : category,
+        subject: subject.trim(),
+        description: (description.trim() + (internalNotes.trim() ? `\n\n[Internal] ${internalNotes.trim()}` : "")),
+        priority,
+        assignedTo: assignedTo.trim() || undefined,
+        attachments: attachment ? [attachment] : [],
+        source: "admin",
+        raisedBy: adminName,
+      });
+      onSuccess(`✅ Grievance ${gr.grievanceId} filed successfully`);
+      onClose();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to submit grievance");
+      setSubmitting(false);
+    }
+  }
+
+  const inputCls = "w-full px-3 py-2.5 text-sm bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary/50";
+  const labelCls = "block text-sm font-medium mb-1.5";
+
   return (
-    <div className="fixed inset-0 z-50 bg-background overflow-y-auto">
-      <div className="max-w-4xl mx-auto p-6 md:p-10">
-        <div className="flex items-center gap-4 mb-6">
-          <button onClick={onClose} className="p-2 rounded-lg hover:bg-muted transition-colors">
-            <ArrowLeft className="h-5 w-5" />
-          </button>
-          <h2 className="font-heading text-2xl">File Grievance</h2>
+    <div className="fixed inset-0 bg-foreground/30 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-card border border-border rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div className="flex justify-between items-center px-6 py-4 border-b border-border sticky top-0 bg-card z-10">
+          <h2 className="font-heading text-xl">📢 File Grievance</h2>
+          <button onClick={onClose}><X className="h-5 w-5 text-muted-foreground hover:text-foreground" /></button>
         </div>
 
-        <div className="space-y-4">
-          {/* Farmer search */}
-          <div className="relative">
-            <label className={labelCls}>Farmer ID or Name <span className="text-destructive">*</span></label>
-            {selectedFarmer ? (
-              <div className="flex items-center gap-2 bg-muted/30 rounded-lg px-3 py-2.5 text-sm">
-                <strong>{selectedFarmer.name}</strong> ({selectedFarmer.id}) — {selectedFarmer.district}
-                <button onClick={() => { setSelectedFarmer(null); setFarmerSearch(""); }} className="ml-auto text-xs text-destructive">×</button>
+        <div className="p-6 space-y-5">
+          {/* Farmer selection */}
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-sm font-medium">Farmer <span className="text-destructive">*</span></label>
+              <button onClick={() => { setUseManual(m => !m); setSelectedFarmer(null); setFarmerSearch(""); }}
+                className="text-xs text-primary underline">
+                {useManual ? "← Search registered farmer" : "Enter manually (unregistered caller)"}
+              </button>
+            </div>
+
+            {useManual ? (
+              <div className="grid grid-cols-2 gap-3">
+                <input value={manualMobile} onChange={e => setManualMobile(e.target.value)}
+                  className={inputCls} placeholder="Mobile number *" maxLength={10} />
+                <input value={manualName} onChange={e => setManualName(e.target.value)}
+                  className={inputCls} placeholder="Farmer name (optional)" />
+              </div>
+            ) : selectedFarmer ? (
+              <div className="flex items-center justify-between bg-agri-light border border-border rounded-lg px-4 py-3">
+                <div>
+                  <div className="font-medium text-sm">{selectedFarmer.name}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {selectedFarmer.farmerId} · {selectedFarmer.mobile} · {selectedFarmer.district}
+                  </div>
+                </div>
+                <button onClick={() => setSelectedFarmer(null)}>
+                  <X className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+                </button>
               </div>
             ) : (
-              <>
-                <input value={farmerSearch} onChange={e => setFarmerSearch(e.target.value)} className={inputCls} placeholder="Type to search..." />
-                {suggestions.length > 0 && farmerSearch && (
-                  <div className="absolute z-10 w-full bg-card border border-border rounded-lg mt-1 shadow-lg max-h-40 overflow-y-auto">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <input value={farmerSearch} onChange={e => setFarmerSearch(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2.5 text-sm border border-border rounded-lg bg-background"
+                  placeholder="Search by name, Farmer ID, or mobile…" />
+                {suggestions.length > 0 && (
+                  <div className="absolute z-10 w-full mt-1 bg-card border border-border rounded-lg shadow-lg overflow-hidden">
                     {suggestions.map(f => (
-                      <button key={f.id} onClick={() => { setSelectedFarmer(f); setFarmerSearch(""); }}
-                        className="w-full text-left px-3 py-2 text-sm hover:bg-muted">{f.name} ({f.id})</button>
+                      <button key={f.farmerId} onClick={() => { setSelectedFarmer(f); setFarmerSearch(""); }}
+                        className="w-full text-left px-4 py-2.5 text-sm hover:bg-muted border-b border-border/40 last:border-0">
+                        <div className="font-medium">{f.name}</div>
+                        <div className="text-xs text-muted-foreground">{f.farmerId} · {f.mobile} · {f.district}</div>
+                      </button>
                     ))}
                   </div>
                 )}
-              </>
-            )}
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className={labelCls}>Mode of Receipt</label>
-              <select value={mode} onChange={e => setMode(e.target.value)} className={inputCls}>
-                <option value="">Select Mode</option>
-                {modes.map(m => <option key={m}>{m}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className={labelCls}>Grievance Category <span className="text-destructive">*</span></label>
-              <select value={grCategory} onChange={e => { setGrCategory(e.target.value); setSubCat(""); }} className={inputCls}>
-                <option value="">Select Category</option>
-                {categories.map(c => <option key={c}>{c}</option>)}
-              </select>
-            </div>
-            {grCategory && subCategories[grCategory] && (
-              <div>
-                <label className={labelCls}>Sub-Category</label>
-                <select value={subCat} onChange={e => setSubCat(e.target.value)} className={inputCls}>
-                  <option value="">Select Sub-Category</option>
-                  {subCategories[grCategory].map(s => <option key={s}>{s}</option>)}
-                </select>
-              </div>
-            )}
-            <div>
-              <label className={labelCls}>Date of Occurrence</label>
-              <input type="date" value={grDate} onChange={e => setGrDate(e.target.value)} className={inputCls} />
-            </div>
-          </div>
-
-          <div>
-            <label className={labelCls}>Subject Line</label>
-            <input value={subject} onChange={e => setSubject(e.target.value.slice(0, 100))} className={inputCls} placeholder="Brief subject" />
-            <p className="text-xs text-muted-foreground text-right">{subject.length}/100</p>
-          </div>
-
-          <div>
-            <label className={labelCls}>Detailed Description <span className="text-destructive">*</span></label>
-            <textarea value={description} onChange={e => triggerAiPriority(e.target.value.slice(0, 1000))} className={`${inputCls} h-28 resize-none`} placeholder="Describe the issue in detail..." />
-            <div className="flex justify-between text-xs text-muted-foreground">
-              <span>{description.split(/\s+/).filter(Boolean).length} words</span>
-              <span>{description.length}/1000</span>
-            </div>
-          </div>
-
-          <div>
-            <label className={labelCls}>Previous Complaint Reference</label>
-            <input value={prevRef} onChange={e => setPrevRef(e.target.value)} className={inputCls} placeholder="e.g. GR-0038 (optional)" />
-            {prevRef && prevRef.startsWith("GR-") && (
-              <div className="mt-2 bg-muted/30 rounded-lg p-3 text-xs">
-                <strong>Linked:</strong> {prevRef} — Subsidy Delay — Resolved May 28, 2024
               </div>
             )}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Category */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={labelCls}>Category <span className="text-destructive">*</span></label>
+              <select value={category} onChange={e => handleCategoryChange(e.target.value)} className={inputCls}>
+                <option value="">Select category…</option>
+                {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+              {category === "Other" && (
+                <input value={customCategory} onChange={e => setCustomCategory(e.target.value)}
+                  className={`${inputCls} mt-2`} placeholder="Specify the category…" />
+              )}
+            </div>
             <div>
               <label className={labelCls}>Priority</label>
-              <select value={priority} onChange={e => setPriority(e.target.value)} className={inputCls}>
-                <option value="">Select Priority</option>
-                {["High", "Medium", "Low"].map(p => <option key={p}>{p}</option>)}
-              </select>
-              {aiSuggestedPriority && <p className="text-xs text-warning mt-1">🤖 AI suggests: {aiSuggestedPriority}</p>}
+              <div className="flex gap-2 mt-1">
+                {["High", "Medium", "Low"].map(p => (
+                  <button key={p} onClick={() => setPriority(p)}
+                    className={`flex-1 text-xs py-2 rounded-lg border font-medium transition-colors ${
+                      priority === p
+                        ? p === "High" ? "bg-destructive/10 text-destructive border-destructive/40"
+                          : p === "Medium" ? "bg-warning/20 text-warning border-warning/40"
+                          : "bg-success/10 text-success border-success/40"
+                        : "bg-card border-border hover:bg-muted"}`}>
+                    {p}
+                  </button>
+                ))}
+              </div>
             </div>
-            <div>
-              <label className={labelCls}>Preferred Resolution</label>
-              <select value={resolutionMode} onChange={e => setResolutionMode(e.target.value)} className={inputCls}>
-                <option value="">Select Mode</option>
-                {resolutionModes.map(r => <option key={r}>{r}</option>)}
-              </select>
-            </div>
+          </div>
+
+          {/* Subject */}
+          <div>
+            <label className={labelCls}>Subject <span className="text-destructive">*</span></label>
+            <input value={subject} onChange={e => setSubject(e.target.value)}
+              className={inputCls} placeholder="Brief subject of the grievance" />
+          </div>
+
+          {/* Description */}
+          <div>
+            <label className={labelCls}>Description <span className="text-destructive">*</span></label>
+            <textarea value={description} onChange={e => setDescription(e.target.value)}
+              className={`${inputCls} h-28 resize-none`}
+              placeholder="Describe the grievance in detail — include relevant dates, amounts, or reference numbers…" />
+          </div>
+
+          {/* Assign to + Internal notes */}
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <label className={labelCls}>Assign To</label>
-              <select value={assignTo} onChange={e => setAssignTo(e.target.value)} className={inputCls}>
-                <option value="">Select Officer</option>
-                {officers.filter(o => o.role !== "District Officer").map(o => (
-                  <option key={o.name}>{o.name} ({officerWorkload[o.name] || 0} cases)</option>
-                ))}
-              </select>
+              <input value={assignedTo} onChange={e => setAssignedTo(e.target.value)}
+                className={inputCls} placeholder="Officer name (optional)" />
             </div>
             <div>
-              <label className={labelCls}>Expected Resolution Date</label>
-              <div className="bg-muted/30 rounded-lg px-3 py-2.5 text-sm">{calcSla() || "Set date & priority"}</div>
+              <label className={`${labelCls} flex items-center gap-1`}><Lock className="h-3 w-3" /> Internal Notes</label>
+              <input value={internalNotes} onChange={e => setInternalNotes(e.target.value)}
+                className={inputCls} placeholder="Visible to officers only" />
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            <span className="text-sm">Supporting Document:</span>
-            <button onClick={() => setDocUploaded(true)} className={`text-xs px-3 py-1.5 rounded-lg ${docUploaded ? "bg-success/10 text-success" : "bg-secondary/10 text-secondary"}`}>
-              {docUploaded ? "✅ Uploaded" : "Upload PDF/JPG"}
+          {/* Attachment */}
+          <div>
+            <label className={labelCls}>
+              Attachment <span className="text-muted-foreground text-xs font-normal">(optional)</span>
+            </label>
+            {attachment ? (
+              <div className="flex items-center gap-2 bg-muted/30 rounded-lg px-3 py-2 text-sm border border-border">
+                <Paperclip className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                <span className="flex-1 truncate">{attachment.name}</span>
+                <button onClick={() => setAttachment(null)}><X className="h-4 w-4 text-muted-foreground hover:text-destructive" /></button>
+              </div>
+            ) : (
+              <button onClick={handleAttach}
+                className="w-full text-sm px-3 py-2.5 border border-dashed border-border rounded-lg text-muted-foreground hover:bg-muted/30 transition-colors flex items-center justify-center gap-2">
+                <Paperclip className="h-4 w-4" /> Attach document or image
+              </button>
+            )}
+          </div>
+
+          {error && <p className="text-sm text-destructive bg-destructive/10 px-3 py-2 rounded-lg">{error}</p>}
+
+          <div className="flex gap-3 pt-1">
+            <button
+              onClick={handleSubmit}
+              disabled={submitting || (!selectedFarmer && !manualMobile.trim()) || !category || !subject.trim() || !description.trim()}
+              className="flex-1 text-sm px-4 py-2.5 bg-secondary text-secondary-foreground rounded-lg hover:opacity-90 disabled:opacity-50 font-medium">
+              {submitting ? "Filing…" : "📢 File Grievance"}
+            </button>
+            <button onClick={onClose} className="text-sm px-4 py-2.5 border border-border rounded-lg hover:bg-muted">
+              Cancel
             </button>
           </div>
-
-          <div>
-            <label className={`${labelCls} flex items-center gap-1.5`}><Lock className="h-3 w-3" /> Internal Notes (officer only)</label>
-            <textarea value={internalNotes} onChange={e => setInternalNotes(e.target.value)} className={`${inputCls} h-16 resize-none`} placeholder="Notes visible only to officers..." />
-          </div>
-        </div>
-
-        <div className="flex justify-between mt-8 pt-4 border-t border-border">
-          <button onClick={onClose} className="text-sm px-4 py-2.5 rounded-lg bg-muted hover:bg-muted/80">Cancel</button>
-          <button onClick={handleSubmit} disabled={!selectedFarmer || !grCategory || !description}
-            className="text-sm px-6 py-2.5 rounded-lg bg-secondary text-secondary-foreground hover:opacity-90 disabled:opacity-50">
-            {submitting ? <div className="w-4 h-4 border-2 border-secondary-foreground border-t-transparent rounded-full animate-spin mx-auto" /> : "File Grievance"}
-          </button>
         </div>
       </div>
     </div>

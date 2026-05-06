@@ -3,9 +3,12 @@ import {
   View, Text, TouchableOpacity, StyleSheet, SafeAreaView,
   ScrollView, Alert, Platform, Image, Modal, ActivityIndicator,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth } from '../context/AuthContext';
 import { COLORS, FONT_SIZE, RADIUS, SHADOW, T } from '../constants';
 import { api, API_BASE } from '../api';
+import type { RootStackParamList } from '../navigation/AppNavigator';
 
 interface DocImage {
   docType: string;
@@ -135,6 +138,7 @@ export default function ProfileScreen() {
   const { state, logout } = useAuth();
   const t = (k: string) => (T[state.lang] ?? T['en'])[k] ?? k;
   const farmer = state.farmer;
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
   const [docImages, setDocImages] = useState<DocImage[]>([]);
   const [loadingDocs, setLoadingDocs] = useState(false);
@@ -293,6 +297,14 @@ export default function ProfileScreen() {
           </SectionCard>
         )}
 
+        <TouchableOpacity
+          style={styles.grievanceBtn}
+          onPress={() => navigation.navigate('Grievance')}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.grievanceBtnText}>📢  {t('raiseGrievance')}</Text>
+        </TouchableOpacity>
+
         <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout} activeOpacity={0.85}>
           <Text style={styles.logoutText}>🚪  {t('logout')}</Text>
         </TouchableOpacity>
@@ -391,6 +403,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14, paddingVertical: 6,
   },
   viewBtnText: { color: COLORS.white, fontSize: FONT_SIZE.xs, fontWeight: '700' },
+  grievanceBtn: {
+    backgroundColor: COLORS.goldLight, borderRadius: RADIUS.lg, paddingVertical: 16,
+    alignItems: 'center', marginBottom: 12, borderWidth: 1.5, borderColor: COLORS.gold, ...SHADOW.sm,
+  },
+  grievanceBtnText: { color: COLORS.gold, fontSize: FONT_SIZE.base, fontWeight: '700' },
   logoutBtn: {
     backgroundColor: COLORS.white, borderRadius: RADIUS.lg, paddingVertical: 16,
     alignItems: 'center', marginBottom: 20, borderWidth: 2, borderColor: COLORS.error, ...SHADOW.sm,

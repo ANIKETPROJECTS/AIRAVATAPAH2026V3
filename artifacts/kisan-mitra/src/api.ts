@@ -155,4 +155,22 @@ export const api = {
     request<{ documents: { docType: string; base64: string; mimeType: string; uploadedAt: string }[] }>(
       `/farmers/${farmerId}/documents`,
     ),
+
+  submitGrievance: (data: {
+    mobile: string;
+    farmerId?: string | null;
+    farmerName?: string | null;
+    category: string;
+    customCategory?: string;
+    subject: string;
+    description: string;
+    attachments?: Array<{ name: string; base64: string; mimeType: string }>;
+  }) =>
+    request<{ grievanceId: string }>('/grievances', {
+      method: 'POST',
+      body: JSON.stringify({ ...data, source: 'farmer' }),
+    }),
+
+  getGrievances: (mobile: string) =>
+    request<unknown[]>(`/grievances?mobile=${encodeURIComponent(mobile)}`),
 };
