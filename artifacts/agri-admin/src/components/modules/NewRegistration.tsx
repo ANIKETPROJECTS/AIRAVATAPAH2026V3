@@ -570,19 +570,24 @@ export interface ExtractionState {
   rawFileDataUrl?: string | null;
 }
 
-/** Full-screen document lightbox — click outside or press Esc to close */
+/** Full-screen document lightbox — click image to zoom, click outside or press Esc to close */
 export function DocLightbox({ src, label, onClose }: { src: string; label?: string; onClose: () => void }) {
+  const [zoomed, setZoomed] = useState(false);
+
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") { if (zoomed) setZoomed(false); else onClose(); }
+    };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [onClose]);
+  }, [onClose, zoomed]);
 
   return createPortal(
     <div
       className="fixed inset-0 z-[300] flex flex-col bg-black/96"
-      onClick={onClose}
+      onClick={() => { if (zoomed) setZoomed(false); else onClose(); }}
     >
+      {/* Header */}
       <div
         className="flex items-center justify-between px-6 py-3 border-b border-white/10 bg-black/70 flex-shrink-0"
         onClick={e => e.stopPropagation()}
@@ -592,7 +597,16 @@ export function DocLightbox({ src, label, onClose }: { src: string; label?: stri
           {label && <span className="text-sm font-semibold text-white/80">{label}</span>}
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-xs text-white/40 hidden sm:block">Click outside or press Esc to close</span>
+          <span className="text-xs text-white/40 hidden sm:block">
+            {zoomed ? "Click image to zoom out · Esc to exit" : "Click image to zoom · Esc to close"}
+          </span>
+          <button
+            onClick={() => setZoomed(z => !z)}
+            className="flex items-center gap-2 text-white/70 hover:text-white text-sm font-semibold transition-colors px-4 py-2 rounded-lg hover:bg-white/10 border border-white/20"
+          >
+            <ZoomIn className="h-4 w-4" />
+            {zoomed ? "Zoom out" : "Zoom in"}
+          </button>
           <button
             onClick={onClose}
             className="flex items-center gap-2 text-white/70 hover:text-white text-sm font-semibold transition-colors px-4 py-2 rounded-lg hover:bg-white/10 border border-white/20"
@@ -602,16 +616,25 @@ export function DocLightbox({ src, label, onClose }: { src: string; label?: stri
           </button>
         </div>
       </div>
+
+      {/* Image area */}
       <div
-        className="flex-1 overflow-auto flex items-center justify-center p-6"
+        className={`flex-1 overflow-auto ${zoomed ? "flex items-start justify-start" : "flex items-center justify-center"} p-6`}
         onClick={e => e.stopPropagation()}
       >
         <img
           src={src}
           alt={label ?? "Document"}
-          className="max-w-full max-h-full object-contain rounded-xl shadow-2xl select-none"
-          style={{ cursor: "zoom-in" }}
-          onDoubleClick={onClose}
+          onClick={() => setZoomed(z => !z)}
+          className={`rounded-xl shadow-2xl select-none transition-all duration-200 ${
+            zoomed
+              ? "w-auto max-w-none h-auto"
+              : "max-w-full max-h-full object-contain"
+          }`}
+          style={{
+            cursor: zoomed ? "zoom-out" : "zoom-in",
+            minWidth: zoomed ? "200%" : undefined,
+          }}
         />
       </div>
     </div>,
