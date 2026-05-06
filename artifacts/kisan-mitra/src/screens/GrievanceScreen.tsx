@@ -5,9 +5,13 @@ import {
 } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth } from '../context/AuthContext';
-import { api } from '../api';
+import { api, GrievanceRecord } from '../api';
 import { COLORS, FONT_SIZE, RADIUS, SHADOW } from '../constants';
+import { RootStackParamList } from '../navigation/AppNavigator';
+
+type NavProp = NativeStackNavigationProp<RootStackParamList>;
 
 const CATEGORIES = [
   'Subsidy Delay',
@@ -29,16 +33,16 @@ const SUBJECT_MAP: Record<string, string> = {
   'Other': '',
 };
 
-interface Grievance {
-  grievanceId: string;
-  category: string;
-  subject: string;
-  status: string;
-  createdAt: string;
+function statusColor(s: string) {
+  if (s === 'Resolved') return COLORS.primary;
+  if (s === 'In Progress') return COLORS.info;
+  if (s === 'Escalated') return COLORS.error;
+  if (s === 'Rejected') return COLORS.error;
+  return COLORS.gold;
 }
 
 export default function GrievanceScreen() {
-  const navigation = useNavigation();
+  const navigation = useNavigation<NavProp>();
   const { state } = useAuth();
   const farmer = state.farmer;
 
@@ -49,8 +53,9 @@ export default function GrievanceScreen() {
   const [attachment, setAttachment] = useState<{ name: string; base64: string; mimeType: string } | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
-  const [myGrievances, setMyGrievances] = useState<Grievance[]>([]);
+  const [myGrievances, setMyGrievances] = useState<GrievanceRecord[]>([]);
   const [loadingList, setLoadingList] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   function selectCategory(cat: string) {
     setCategory(cat);
@@ -58,13 +63,17 @@ export default function GrievanceScreen() {
     setSubject(SUBJECT_MAP[cat] ?? '');
   }
 
-  useEffect(() => {
+  function loadGrievances() {
     if (!state.mobile) return;
     setLoadingList(true);
     api.getGrievances(state.mobile)
-      .then(data => setMyGrievances(data as Grievance[]))
+      .then(data => setMyGrievances(data))
       .catch(() => {})
       .finally(() => setLoadingList(false));
+  }
+
+  useEffect(() => {
+    loadGrievances();
   }, [state.mobile, success]);
 
   async function pickAttachment() {
@@ -124,11 +133,37 @@ export default function GrievanceScreen() {
     }
   }
 
-  function statusColor(s: string) {
-    if (s === 'Resolved') return COLORS.primary;
-    if (s === 'In Progress') return COLORS.info;
-    if (s === 'Escalated') return COLORS.error;
-    return COLORS.gold;
+  function handleView(grievanceId: string) {
+    navigation.navigate('GrievanceDetail', { grievanceId, editMode: false });
+  }
+
+  function handleEdit(grievanceId: string) {
+    navigation.navigate('GrievanceDetail', { grievanceId, editMode: true });
+  }
+
+  function handleDelete(grievance: GrievanceRecord) {
+    Alert.alert(
+      'Delete Grievance',
+      `Are you sure you want to delete this grievance?\n\n"${grievance.subject}"\n\nThis action cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            setDeletingId(grievance.grievanceId);
+            try {
+              await api.deleteGrievance(grievance.grievanceId);
+              setMyGrievances(prev => prev.filter(g => g.grievanceId !== grievance.grievanceId));
+            } catch (err) {
+              Alert.alert('Error', err instanceof Error ? err.message : 'Could not delete. Please try again.');
+            } finally {
+              setDeletingId(null);
+            }
+          },
+        },
+      ]
+    );
   }
 
   return (
@@ -235,15 +270,47 @@ export default function GrievanceScreen() {
           ) : (
             myGrievances.map(g => (
               <View key={g.grievanceId} style={styles.grievanceRow}>
-                <View style={{ flex: 1 }}>
-                  <View style={styles.grievanceTopRow}>
-                    <Text style={styles.grievanceId}>{g.grievanceId}</Text>
-                    <View style={[styles.statusPill, { backgroundColor: statusColor(g.status) + '20', borderColor: statusColor(g.status) + '60' }]}>
-                      <Text style={[styles.statusPillText, { color: statusColor(g.status) }]}>{g.status}</Text>
-                    </View>
+                <View style={styles.grievanceHeader}>
+                  <Text style={styles.grievanceId}>{g.grievanceId}</Text>
+                  <View style={[styles.statusPill, { backgroundColor: statusColor(g.status) + '20', borderColor: statusColor(g.status) + '60' }]}>
+                    <Text style={[styles.statusPillText, { color: statusColor(g.status) }]}>{g.status}</Text>
                   </View>
-                  <Text style={styles.grievanceSubject} numberOfLines={1}>{g.subject}</Text>
-                  <Text style={styles.grievanceMeta}>{g.category}  •  {new Date(g.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</Text>
+                </View>
+                <Text style={styles.grievanceSubject} numberOfLines={1}>{g.subject}</Text>
+                <Text style={styles.grievanceMeta}>{g.category}  •  {new Date(g.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</Text>
+
+                <View style={styles.actionRow}>
+                  <TouchableOpacity
+                    style={styles.actionBtn}
+                    onPress={() => handleView(g.grievanceId)}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.actionBtnText}>👁 View</Text>
+                  </TouchableOpacity>
+
+                  {g.status === 'Open' && (
+                    <TouchableOpacity
+                      style={[styles.actionBtn, styles.actionBtnEdit]}
+                      onPress={() => handleEdit(g.grievanceId)}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={[styles.actionBtnText, styles.actionBtnEditText]}>✏️ Edit</Text>
+                    </TouchableOpacity>
+                  )}
+
+                  {(g.status === 'Open' || g.status === 'Rejected') && (
+                    <TouchableOpacity
+                      style={[styles.actionBtn, styles.actionBtnDelete]}
+                      onPress={() => handleDelete(g)}
+                      disabled={deletingId === g.grievanceId}
+                      activeOpacity={0.8}
+                    >
+                      {deletingId === g.grievanceId
+                        ? <ActivityIndicator size="small" color={COLORS.error} />
+                        : <Text style={[styles.actionBtnText, styles.actionBtnDeleteText]}>🗑 Delete</Text>
+                      }
+                    </TouchableOpacity>
+                  )}
                 </View>
               </View>
             ))
@@ -323,15 +390,24 @@ const styles = StyleSheet.create({
   successText: { color: COLORS.primaryDark, fontSize: FONT_SIZE.sm, fontWeight: '700' },
   emptyText: { color: COLORS.textMuted, fontSize: FONT_SIZE.sm, textAlign: 'center', paddingVertical: 16 },
   grievanceRow: {
-    paddingVertical: 12, borderTopWidth: 1, borderTopColor: COLORS.borderLight,
+    paddingVertical: 14, borderTopWidth: 1, borderTopColor: COLORS.borderLight,
   },
-  grievanceTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
+  grievanceHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5 },
   grievanceId: { fontSize: FONT_SIZE.xs, fontFamily: 'monospace', color: COLORS.textMuted, fontWeight: '700' },
   statusPill: {
-    paddingHorizontal: 10, paddingVertical: 3, borderRadius: RADIUS.full,
-    borderWidth: 1,
+    paddingHorizontal: 10, paddingVertical: 3, borderRadius: RADIUS.full, borderWidth: 1,
   },
   statusPillText: { fontSize: FONT_SIZE.xs, fontWeight: '700' },
   grievanceSubject: { fontSize: FONT_SIZE.sm, fontWeight: '700', color: COLORS.text, marginBottom: 3 },
-  grievanceMeta: { fontSize: FONT_SIZE.xs, color: COLORS.textMuted },
+  grievanceMeta: { fontSize: FONT_SIZE.xs, color: COLORS.textMuted, marginBottom: 10 },
+  actionRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
+  actionBtn: {
+    paddingHorizontal: 14, paddingVertical: 7, borderRadius: RADIUS.md,
+    backgroundColor: COLORS.primaryBg, borderWidth: 1.5, borderColor: COLORS.primary,
+  },
+  actionBtnText: { fontSize: FONT_SIZE.xs, fontWeight: '700', color: COLORS.primary },
+  actionBtnEdit: { backgroundColor: '#FFFBEB', borderColor: '#D97706' },
+  actionBtnEditText: { color: '#D97706' },
+  actionBtnDelete: { backgroundColor: '#FFF1F2', borderColor: COLORS.error },
+  actionBtnDeleteText: { color: COLORS.error },
 });

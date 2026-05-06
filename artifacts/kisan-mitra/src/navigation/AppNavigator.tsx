@@ -19,6 +19,7 @@ import NotificationsScreen from '../screens/NotificationsScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import AnalyticsScreen from '../screens/AnalyticsScreen';
 import GrievanceScreen from '../screens/GrievanceScreen';
+import GrievanceDetailScreen from '../screens/GrievanceDetailScreen';
 
 export type RootStackParamList = {
   Welcome: undefined;
@@ -30,6 +31,7 @@ export type RootStackParamList = {
   Verified: undefined;
   Main: undefined;
   Grievance: undefined;
+  GrievanceDetail: { grievanceId: string; editMode?: boolean };
 };
 
 export type TabParamList = {
@@ -187,6 +189,7 @@ export default function AppNavigator() {
               {() => <MainTabs initialTab={initialTab} />}
             </Stack.Screen>
             <Stack.Screen name="Grievance" component={GrievanceScreen} />
+            <Stack.Screen name="GrievanceDetail" component={GrievanceDetailScreen} />
           </>
         ) : farmerStatus === 'Pending' ? (
           <Stack.Screen name="Pending" component={PendingScreen} />

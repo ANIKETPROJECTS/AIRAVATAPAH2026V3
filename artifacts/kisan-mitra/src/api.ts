@@ -62,6 +62,28 @@ export interface ExtractPollResult {
   error?: string;
 }
 
+export interface GrievanceRecord {
+  grievanceId: string;
+  mobile: string;
+  farmerId: string | null;
+  farmerName: string | null;
+  category: string;
+  subject: string;
+  description: string;
+  attachments: Array<{ name: string; base64: string; mimeType: string }>;
+  status: string;
+  priority: string;
+  assignedTo: string | null;
+  adminReply: string | null;
+  adminNotes: string | null;
+  rejectionReason: string | null;
+  resolvedAt: string | null;
+  source: string;
+  raisedBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export const api = {
   sendOtp: (mobile: string) =>
     request<SendOtpResult>('/auth/send-otp', {
@@ -166,11 +188,35 @@ export const api = {
     description: string;
     attachments?: Array<{ name: string; base64: string; mimeType: string }>;
   }) =>
-    request<{ grievanceId: string }>('/grievances', {
+    request<GrievanceRecord>('/grievances', {
       method: 'POST',
       body: JSON.stringify({ ...data, source: 'farmer' }),
     }),
 
   getGrievances: (mobile: string) =>
-    request<unknown[]>(`/grievances?mobile=${encodeURIComponent(mobile)}`),
+    request<GrievanceRecord[]>(`/grievances?mobile=${encodeURIComponent(mobile)}`),
+
+  getGrievanceById: (grievanceId: string) =>
+    request<GrievanceRecord>(`/grievances/${encodeURIComponent(grievanceId)}`),
+
+  updateGrievance: (grievanceId: string, data: {
+    category?: string;
+    subject?: string;
+    description?: string;
+  }) =>
+    request<GrievanceRecord>(`/grievances/${encodeURIComponent(grievanceId)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+
+  deleteGrievance: async (grievanceId: string): Promise<void> => {
+    const res = await fetch(`${API_BASE}/grievances/${encodeURIComponent(grievanceId)}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Delete failed' }));
+      throw new Error((err as Record<string, string>).error ?? 'Delete failed');
+    }
+  },
 };

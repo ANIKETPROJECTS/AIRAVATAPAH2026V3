@@ -1,11 +1,11 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { X, ChevronLeft, ChevronRight, Plus, RefreshCw, Search, Paperclip } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, RefreshCw, Search, Paperclip, ArrowLeft, AlertTriangle } from "lucide-react";
 import { apiFetchGrievances, apiUpdateGrievance, type GrievanceRecord } from "@/data/grievanceApi";
 import GrievanceFilingForm from "@/components/forms/GrievanceFilingForm";
 import { useAuth } from "@/contexts/AuthContext";
 
 const CATEGORIES = ["Subsidy Delay", "Wrong Beneficiary", "Document Issue", "Officer Misconduct", "Technical Error", "Portal/App Issue", "Other"];
-const STATUSES = ["Open", "In Progress", "Resolved", "Escalated", "Closed"] as const;
+const STATUSES = ["Open", "In Progress", "Resolved", "Escalated", "Closed", "Rejected"] as const;
 const PRIORITIES = ["High", "Medium", "Low"] as const;
 
 function PriorityBadge({ p }: { p: string }) {
@@ -19,6 +19,7 @@ function StatusBadge({ s }: { s: string }) {
     s === "Resolved" ? "bg-success/10 text-success" :
     s === "In Progress" ? "bg-info/10 text-info" :
     s === "Escalated" ? "bg-destructive/10 text-destructive" :
+    s === "Rejected" ? "bg-destructive/20 text-destructive" :
     s === "Closed" ? "bg-muted text-muted-foreground" :
     "bg-warning/20 text-warning";
   return <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${cls}`}>{s}</span>;
@@ -38,10 +39,10 @@ function avgResolutionDays(list: GrievanceRecord[]) {
   return `${avg.toFixed(1)} days`;
 }
 
-function GrievanceDetailModal({
-  gr, onClose, onUpdated, adminName,
+function GrievanceDetailPage({
+  gr, onBack, onUpdated, adminName,
 }: {
-  gr: GrievanceRecord; onClose: () => void;
+  gr: GrievanceRecord; onBack: () => void;
   onUpdated: (updated: GrievanceRecord) => void;
   adminName: string;
 }) {
@@ -49,79 +50,155 @@ function GrievanceDetailModal({
   const [notes, setNotes] = useState(gr.adminNotes ?? "");
   const [assignedTo, setAssignedTo] = useState(gr.assignedTo ?? "");
   const [priority, setPriority] = useState(gr.priority);
-  const [status, setStatus] = useState(gr.status);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState("");
+  const [showRejectInput, setShowRejectInput] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
+  const [rejectSaving, setRejectSaving] = useState(false);
+
+  const currentGr = gr;
 
   function showToast(msg: string) { setToast(msg); setTimeout(() => setToast(""), 3000); }
 
-  async function save(patch: Parameters<typeof apiUpdateGrievance>[1]) {
+  async function handleSaveChanges() {
     setSaving(true);
     try {
-      const updated = await apiUpdateGrievance(gr.grievanceId, patch);
+      const updated = await apiUpdateGrievance(gr.grievanceId, {
+        adminReply: reply,
+        adminNotes: notes,
+        priority,
+        assignedTo: assignedTo || null,
+      });
       onUpdated(updated);
       showToast("✅ Changes saved");
     } catch { showToast("❌ Failed to save"); }
     finally { setSaving(false); }
   }
 
-  async function handleSendReply() {
-    await save({ adminReply: reply, adminNotes: notes, status, priority, assignedTo: assignedTo || null as unknown as string });
-  }
-  async function handleResolve() {
-    const updated = await apiUpdateGrievance(gr.grievanceId, { status: "Resolved", resolvedAt: new Date().toISOString(), adminReply: reply || undefined }).catch(() => null);
-    if (updated) { onUpdated(updated); showToast("✅ Marked as Resolved"); }
-  }
-  async function handleEscalate() {
-    const updated = await apiUpdateGrievance(gr.grievanceId, { status: "Escalated" }).catch(() => null);
-    if (updated) { onUpdated(updated); showToast("⬆️ Escalated"); }
+  async function handleStatusChange(newStatus: string, extra?: { resolvedAt?: string; rejectionReason?: string }) {
+    setSaving(true);
+    try {
+      const updated = await apiUpdateGrievance(gr.grievanceId, { status: newStatus, ...extra });
+      onUpdated(updated);
+      showToast(`✅ Status updated to ${newStatus}`);
+    } catch { showToast("❌ Failed to update status"); }
+    finally { setSaving(false); }
   }
 
+  async function handleResolve() {
+    await handleStatusChange("Resolved", { resolvedAt: new Date().toISOString() });
+  }
+
+  async function handleEscalate() {
+    await handleStatusChange("Escalated");
+  }
+
+  async function handleReopen() {
+    await handleStatusChange("Open");
+  }
+
+  async function handleConfirmReject() {
+    if (!rejectReason.trim()) { showToast("⚠️ Please enter a rejection reason"); return; }
+    setRejectSaving(true);
+    try {
+      const updated = await apiUpdateGrievance(gr.grievanceId, {
+        status: "Rejected",
+        rejectionReason: rejectReason.trim(),
+      });
+      onUpdated(updated);
+      setShowRejectInput(false);
+      setRejectReason("");
+      showToast("❌ Grievance rejected");
+    } catch { showToast("❌ Failed to reject grievance"); }
+    finally { setRejectSaving(false); }
+  }
+
+  const isSettled = currentGr.status === "Resolved" || currentGr.status === "Rejected" || currentGr.status === "Closed";
   const hasAttachments = gr.attachments && gr.attachments.length > 0;
 
   return (
-    <div className="fixed inset-0 bg-foreground/30 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-card border border-border rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto animate-fade-in" onClick={e => e.stopPropagation()}>
-        {toast && <div className="sticky top-0 z-10 text-center text-sm py-2 bg-primary text-primary-foreground rounded-t-xl">{toast}</div>}
-        <div className="p-6 space-y-5">
-          {/* Header */}
-          <div className="flex justify-between items-start">
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <span className="font-mono text-sm text-muted-foreground">{gr.grievanceId}</span>
-                <StatusBadge s={gr.status} />
-                <PriorityBadge p={gr.priority} />
-                {gr.source === "admin" && <span className="text-xs px-2 py-0.5 rounded-full bg-info/10 text-info">Admin Filed</span>}
-              </div>
-              <h2 className="font-heading text-lg">{gr.subject}</h2>
-              <p className="text-sm text-muted-foreground">Filed {fmt(gr.createdAt)}{gr.resolvedAt ? ` · Resolved ${fmt(gr.resolvedAt)}` : ""}</p>
-            </div>
-            <button onClick={onClose}><X className="h-5 w-5 text-muted-foreground hover:text-foreground" /></button>
-          </div>
+    <div className="space-y-5 animate-fade-in">
+      {toast && (
+        <div className="fixed top-4 right-4 z-50 bg-primary text-primary-foreground px-4 py-3 rounded-lg shadow-lg text-sm animate-fade-in">
+          {toast}
+        </div>
+      )}
 
+      {/* Back button + header */}
+      <div className="flex items-center gap-3">
+        <button onClick={onBack} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
+          <ArrowLeft className="h-4 w-4" /> Back to Grievances
+        </button>
+      </div>
+
+      {/* Title row */}
+      <div className="bg-card border border-border rounded-xl p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <div className="flex flex-wrap items-center gap-2 mb-1">
+              <span className="font-mono text-sm text-muted-foreground">{gr.grievanceId}</span>
+              <StatusBadge s={currentGr.status} />
+              <PriorityBadge p={priority} />
+              {gr.source === "admin" && <span className="text-xs px-2 py-0.5 rounded-full bg-info/10 text-info">Admin Filed</span>}
+            </div>
+            <h2 className="font-heading text-xl">{gr.subject}</h2>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              Filed {fmt(gr.createdAt)}
+              {gr.resolvedAt ? ` · Resolved ${fmt(gr.resolvedAt)}` : ""}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
+        {/* Left: details */}
+        <div className="lg:col-span-3 space-y-4">
           {/* Farmer info */}
-          <div className="bg-muted/30 rounded-lg p-4 grid grid-cols-2 gap-2 text-sm">
-            <div><span className="text-muted-foreground">Farmer: </span><strong>{gr.farmerName ?? "—"}</strong></div>
-            <div><span className="text-muted-foreground">Mobile: </span><strong>{gr.mobile}</strong></div>
-            <div><span className="text-muted-foreground">Farmer ID: </span><strong>{gr.farmerId ?? "—"}</strong></div>
-            <div><span className="text-muted-foreground">Category: </span><strong>{gr.category}</strong></div>
+          <div className="bg-card border border-border rounded-xl p-5">
+            <h4 className="font-heading text-sm mb-3 text-muted-foreground uppercase tracking-wide">Farmer Information</h4>
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div><span className="text-muted-foreground">Farmer: </span><strong>{gr.farmerName ?? "—"}</strong></div>
+              <div><span className="text-muted-foreground">Mobile: </span><strong>{gr.mobile}</strong></div>
+              <div><span className="text-muted-foreground">Farmer ID: </span><strong>{gr.farmerId ?? "—"}</strong></div>
+              <div><span className="text-muted-foreground">Category: </span><strong>{gr.category}</strong></div>
+              {gr.assignedTo && <div><span className="text-muted-foreground">Assigned To: </span><strong>{gr.assignedTo}</strong></div>}
+              {gr.raisedBy && <div><span className="text-muted-foreground">Raised By: </span><strong>{gr.raisedBy}</strong></div>}
+            </div>
           </div>
 
           {/* Description */}
-          <div>
-            <h4 className="font-heading text-sm mb-2">Grievance Description</h4>
-            <div className="bg-muted/30 rounded-lg p-4 text-sm whitespace-pre-wrap">{gr.description}</div>
+          <div className="bg-card border border-border rounded-xl p-5">
+            <h4 className="font-heading text-sm mb-3 text-muted-foreground uppercase tracking-wide">Grievance Description</h4>
+            <div className="text-sm whitespace-pre-wrap leading-relaxed">{gr.description}</div>
           </div>
+
+          {/* Rejection reason (if rejected) */}
+          {currentGr.status === "Rejected" && currentGr.rejectionReason && (
+            <div className="bg-destructive/5 border border-destructive/20 rounded-xl p-5">
+              <h4 className="font-heading text-sm mb-2 text-destructive flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4" /> Rejection Reason
+              </h4>
+              <p className="text-sm whitespace-pre-wrap">{currentGr.rejectionReason}</p>
+            </div>
+          )}
+
+          {/* Admin reply to farmer */}
+          {currentGr.adminReply && (
+            <div className="bg-agri-light border border-border rounded-xl p-5">
+              <h4 className="font-heading text-sm mb-2 text-muted-foreground uppercase tracking-wide">Reply to Farmer</h4>
+              <p className="text-sm whitespace-pre-wrap">{currentGr.adminReply}</p>
+            </div>
+          )}
 
           {/* Attachments */}
           {hasAttachments && (
-            <div>
-              <h4 className="font-heading text-sm mb-2">Attachments</h4>
+            <div className="bg-card border border-border rounded-xl p-5">
+              <h4 className="font-heading text-sm mb-3 text-muted-foreground uppercase tracking-wide">Attachments</h4>
               <div className="flex flex-wrap gap-2">
                 {gr.attachments.map((att, i) => {
                   const isImg = att.mimeType.startsWith("image/");
                   return isImg ? (
-                    <a key={i} href={`data:${att.mimeType};base64,${att.base64}`} download={att.name} className="block">
+                    <a key={i} href={`data:${att.mimeType};base64,${att.base64}`} download={att.name}>
                       <img src={`data:${att.mimeType};base64,${att.base64}`} alt={att.name} className="h-24 w-24 object-cover rounded border border-border cursor-pointer hover:opacity-80 transition-opacity" />
                     </a>
                   ) : (
@@ -134,64 +211,125 @@ function GrievanceDetailModal({
               </div>
             </div>
           )}
+        </div>
 
-          {/* Admin controls */}
-          <div className="border border-border rounded-lg p-4 space-y-4">
-            <h4 className="font-heading text-sm">Admin Actions</h4>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Status</label>
-                <select value={status} onChange={e => setStatus(e.target.value as typeof status)}
-                  className="w-full text-sm px-3 py-2 border border-border rounded-lg bg-background">
-                  {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
+        {/* Right: admin actions */}
+        <div className="lg:col-span-2 space-y-4">
+          {/* Status action buttons */}
+          <div className="bg-card border border-border rounded-xl p-5 space-y-3">
+            <h4 className="font-heading text-sm text-muted-foreground uppercase tracking-wide">Status Actions</h4>
+            <div className="flex flex-col gap-2">
+              {isSettled ? (
+                <button onClick={handleReopen} disabled={saving}
+                  className="w-full text-sm px-4 py-2.5 rounded-lg bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 font-medium">
+                  🔄 Reopen Grievance
+                </button>
+              ) : (
+                <>
+                  {currentGr.status !== "Resolved" && (
+                    <button onClick={handleResolve} disabled={saving}
+                      className="w-full text-sm px-4 py-2.5 rounded-lg bg-success text-white hover:opacity-90 disabled:opacity-50 font-medium">
+                      ✅ Mark as Resolved
+                    </button>
+                  )}
+                  {currentGr.status !== "Escalated" && (
+                    <button onClick={handleEscalate} disabled={saving}
+                      className="w-full text-sm px-4 py-2.5 rounded-lg border border-warning/40 bg-warning/10 text-warning hover:bg-warning/20 disabled:opacity-50 font-medium">
+                      ⬆️ Escalate
+                    </button>
+                  )}
+                  {currentGr.status !== "In Progress" && currentGr.status !== "Resolved" && currentGr.status !== "Escalated" && (
+                    <button onClick={() => handleStatusChange("In Progress")} disabled={saving}
+                      className="w-full text-sm px-4 py-2.5 rounded-lg border border-info/40 bg-info/10 text-info hover:bg-info/20 disabled:opacity-50 font-medium">
+                      🔄 Mark In Progress
+                    </button>
+                  )}
+                  <button onClick={() => setShowRejectInput(v => !v)} disabled={saving}
+                    className="w-full text-sm px-4 py-2.5 rounded-lg border border-destructive/40 bg-destructive/5 text-destructive hover:bg-destructive/10 disabled:opacity-50 font-medium">
+                    ❌ Reject Grievance
+                  </button>
+                </>
+              )}
+            </div>
+
+            {showRejectInput && (
+              <div className="border-t border-border pt-3 space-y-2">
+                <label className="text-xs text-muted-foreground font-medium block">Rejection Reason <span className="text-destructive">*</span></label>
+                <textarea
+                  value={rejectReason}
+                  onChange={e => setRejectReason(e.target.value)}
+                  className="w-full text-sm px-3 py-2 border border-border rounded-lg bg-background resize-none h-24 focus:outline-none focus:ring-2 focus:ring-destructive/30"
+                  placeholder="Explain why this grievance is being rejected…"
+                />
+                <div className="flex gap-2">
+                  <button onClick={handleConfirmReject} disabled={rejectSaving || !rejectReason.trim()}
+                    className="flex-1 text-sm px-3 py-2 rounded-lg bg-destructive text-white hover:opacity-90 disabled:opacity-50 font-medium">
+                    {rejectSaving ? "Rejecting…" : "Confirm Reject"}
+                  </button>
+                  <button onClick={() => { setShowRejectInput(false); setRejectReason(""); }}
+                    className="text-sm px-3 py-2 rounded-lg border border-border hover:bg-muted">
+                    Cancel
+                  </button>
+                </div>
               </div>
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Priority</label>
-                <select value={priority} onChange={e => setPriority(e.target.value as typeof priority)}
-                  className="w-full text-sm px-3 py-2 border border-border rounded-lg bg-background">
-                  {PRIORITIES.map(p => <option key={p} value={p}>{p}</option>)}
-                </select>
-              </div>
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground mb-1 block">Assigned To</label>
-              <input value={assignedTo} onChange={e => setAssignedTo(e.target.value)}
-                className="w-full text-sm px-3 py-2 border border-border rounded-lg bg-background"
-                placeholder="Officer name or leave blank" />
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground mb-1 block">Reply to Farmer</label>
-              <textarea value={reply} onChange={e => setReply(e.target.value)}
-                className="w-full text-sm px-3 py-2 border border-border rounded-lg bg-background h-20 resize-none"
-                placeholder={`Dear ${gr.farmerName ?? "Farmer"} ji, We have received your grievance regarding ${gr.category.toLowerCase()} and are working to resolve it at the earliest.`} />
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground mb-1 block">Internal Notes (not visible to farmer)</label>
-              <textarea value={notes} onChange={e => setNotes(e.target.value)}
-                className="w-full text-sm px-3 py-2 border border-border rounded-lg bg-background h-16 resize-none"
-                placeholder="Internal notes, follow-up actions..." />
-            </div>
+            )}
           </div>
 
-          {/* Action buttons */}
-          <div className="flex gap-2 flex-wrap">
-            <button onClick={handleSendReply} disabled={saving}
-              className="text-sm px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50">
+          {/* Admin reply & notes */}
+          <div className="bg-card border border-border rounded-xl p-5 space-y-4">
+            <h4 className="font-heading text-sm text-muted-foreground uppercase tracking-wide">Admin Response</h4>
+
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block font-medium">Priority</label>
+              <div className="flex gap-2">
+                {PRIORITIES.map(p => (
+                  <button key={p} onClick={() => setPriority(p)}
+                    className={`flex-1 text-xs py-2 rounded-lg border font-medium transition-colors ${
+                      priority === p
+                        ? p === "High" ? "bg-destructive/10 text-destructive border-destructive/40"
+                          : p === "Medium" ? "bg-warning/20 text-warning border-warning/40"
+                          : "bg-success/10 text-success border-success/40"
+                        : "bg-card border-border hover:bg-muted"
+                    }`}>
+                    {p}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block font-medium">Assigned To</label>
+              <input value={assignedTo} onChange={e => setAssignedTo(e.target.value)}
+                className="w-full text-sm px-3 py-2 border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
+                placeholder="Officer name or leave blank" />
+            </div>
+
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block font-medium">Reply to Farmer</label>
+              <textarea value={reply} onChange={e => setReply(e.target.value)}
+                className="w-full text-sm px-3 py-2 border border-border rounded-lg bg-background h-24 resize-none focus:outline-none focus:ring-2 focus:ring-primary/30"
+                placeholder={`Dear ${gr.farmerName ?? "Farmer"} ji, We have received your grievance regarding ${gr.category.toLowerCase()} and are working to resolve it at the earliest.`} />
+            </div>
+
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block font-medium">Internal Notes <span className="text-muted-foreground font-normal">(not visible to farmer)</span></label>
+              <textarea value={notes} onChange={e => setNotes(e.target.value)}
+                className="w-full text-sm px-3 py-2 border border-border rounded-lg bg-background h-20 resize-none focus:outline-none focus:ring-2 focus:ring-primary/30"
+                placeholder="Internal notes, follow-up actions…" />
+            </div>
+
+            <button onClick={handleSaveChanges} disabled={saving}
+              className="w-full text-sm px-4 py-2.5 rounded-lg bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 font-medium">
               {saving ? "Saving…" : "💾 Save Changes"}
             </button>
-            {gr.status !== "Resolved" && (
-              <button onClick={handleResolve} className="text-sm px-4 py-2 rounded-lg bg-success text-primary-foreground hover:opacity-90">✅ Mark Resolved</button>
-            )}
-            {gr.status !== "Escalated" && gr.status !== "Resolved" && (
-              <button onClick={handleEscalate} className="text-sm px-4 py-2 rounded-lg bg-warning/20 text-warning border border-warning/30 hover:bg-warning/30">⬆️ Escalate</button>
-            )}
           </div>
         </div>
       </div>
     </div>
   );
 }
+
+type ViewState = "list" | "detail" | "new";
 
 export default function GrievanceManagement() {
   const { currentUser } = useAuth();
@@ -202,8 +340,8 @@ export default function GrievanceManagement() {
   const [statusFilter, setStatusFilter] = useState("");
   const [searchQ, setSearchQ] = useState("");
   const [page, setPage] = useState(0);
-  const [viewGr, setViewGr] = useState<GrievanceRecord | null>(null);
-  const [showFileGrievance, setShowFileGrievance] = useState(false);
+  const [view, setView] = useState<ViewState>("list");
+  const [selectedGr, setSelectedGr] = useState<GrievanceRecord | null>(null);
   const [toast, setToast] = useState("");
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(""), 3000); };
@@ -256,12 +394,46 @@ export default function GrievanceManagement() {
 
   function handleUpdated(updated: GrievanceRecord) {
     setGrievances(prev => prev.map(g => g.grievanceId === updated.grievanceId ? updated : g));
-    setViewGr(updated);
+    setSelectedGr(updated);
+  }
+
+  function openDetail(g: GrievanceRecord) {
+    setSelectedGr(g);
+    setView("detail");
+  }
+
+  function goBack() {
+    setView("list");
+    setSelectedGr(null);
+  }
+
+  if (view === "new") {
+    return (
+      <div className="animate-fade-in">
+        {toast && <div className="fixed top-4 right-4 z-50 bg-primary text-primary-foreground px-4 py-3 rounded-lg shadow-lg text-sm">{toast}</div>}
+        <GrievanceFilingForm
+          onBack={() => setView("list")}
+          onSuccess={(msg) => { showToast(msg); refresh(); setView("list"); }}
+          adminName={currentUser?.name ?? "Admin"}
+        />
+      </div>
+    );
+  }
+
+  if (view === "detail" && selectedGr) {
+    return (
+      <GrievanceDetailPage
+        gr={selectedGr}
+        onBack={goBack}
+        onUpdated={handleUpdated}
+        adminName={currentUser?.name ?? "Admin"}
+      />
+    );
   }
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {toast && <div className="fixed top-4 right-4 z-50 bg-primary text-primary-foreground px-4 py-3 rounded-lg shadow-lg text-sm animate-fade-in" style={{ opacity: 0 }}>{toast}</div>}
+      {toast && <div className="fixed top-4 right-4 z-50 bg-primary text-primary-foreground px-4 py-3 rounded-lg shadow-lg text-sm">{toast}</div>}
 
       {/* KPIs */}
       <div className="grid grid-cols-3 lg:grid-cols-6 gap-3">
@@ -280,7 +452,7 @@ export default function GrievanceManagement() {
           <div className="flex flex-wrap gap-2">
             {CATEGORIES.map(c => (
               <button key={c}
-                onClick={() => { setStatusFilter(""); setSearchQ(c === "Other" ? "" : ""); if (c !== "Other") setSearchQ(c); setPage(0); }}
+                onClick={() => { setStatusFilter(""); setSearchQ(c === "Other" ? "" : c); setPage(0); }}
                 className="text-xs px-3 py-1.5 rounded-full bg-card border border-border font-medium hover:bg-muted transition-colors">
                 {c} ({catCounts[c] ?? 0})
               </button>
@@ -288,7 +460,7 @@ export default function GrievanceManagement() {
           </div>
         </div>
         <div className="flex flex-col gap-2">
-          <button onClick={() => setShowFileGrievance(true)}
+          <button onClick={() => setView("new")}
             className="flex items-center gap-1.5 text-sm px-4 py-2 bg-secondary text-secondary-foreground rounded-lg hover:opacity-90 whitespace-nowrap">
             <Plus className="h-4 w-4" /> File Grievance
           </button>
@@ -307,8 +479,8 @@ export default function GrievanceManagement() {
             className="w-full pl-9 pr-3 py-2 text-sm border border-border rounded-lg bg-background"
             placeholder="Search by farmer name, GR ID, category…" />
         </div>
-        <div className="flex gap-2">
-          {["", "Open", "In Progress", "Resolved", "Escalated"].map(s => (
+        <div className="flex flex-wrap gap-2">
+          {(["", "Open", "In Progress", "Resolved", "Escalated", "Rejected"] as const).map(s => (
             <button key={s} onClick={() => { setStatusFilter(s); setPage(0); }}
               className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${statusFilter === s ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border hover:bg-muted"}`}>
               {s || "All"}
@@ -367,7 +539,7 @@ export default function GrievanceManagement() {
                     <td className="px-4 py-2.5 text-xs">{g.assignedTo ?? <span className="text-muted-foreground">—</span>}</td>
                     <td className="px-4 py-2.5"><StatusBadge s={g.status} /></td>
                     <td className="px-4 py-2.5">
-                      <button onClick={() => setViewGr(g)} className="text-xs px-3 py-1.5 rounded bg-primary text-primary-foreground hover:opacity-90">View</button>
+                      <button onClick={() => openDetail(g)} className="text-xs px-3 py-1.5 rounded bg-primary text-primary-foreground hover:opacity-90">View</button>
                     </td>
                   </tr>
                 ))}
@@ -382,23 +554,6 @@ export default function GrievanceManagement() {
             </div>
           </div>
         </div>
-      )}
-
-      {viewGr && (
-        <GrievanceDetailModal
-          gr={viewGr}
-          onClose={() => setViewGr(null)}
-          onUpdated={handleUpdated}
-          adminName={currentUser?.name ?? "Admin"}
-        />
-      )}
-
-      {showFileGrievance && (
-        <GrievanceFilingForm
-          onClose={() => setShowFileGrievance(false)}
-          onSuccess={(msg) => { showToast(msg); refresh(); }}
-          adminName={currentUser?.name ?? "Admin"}
-        />
       )}
     </div>
   );

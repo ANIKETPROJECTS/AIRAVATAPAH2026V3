@@ -15,11 +15,12 @@ export interface GrievanceRecord {
   subject: string;
   description: string;
   attachments: GrievanceAttachment[];
-  status: "Open" | "In Progress" | "Resolved" | "Closed" | "Escalated";
+  status: "Open" | "In Progress" | "Resolved" | "Closed" | "Escalated" | "Rejected";
   priority: "High" | "Medium" | "Low";
   assignedTo: string | null;
   adminReply: string | null;
   adminNotes: string | null;
+  rejectionReason: string | null;
   resolvedAt: string | null;
   source: "farmer" | "admin";
   raisedBy: string | null;
@@ -73,8 +74,9 @@ export async function apiUpdateGrievance(
     adminReply?: string;
     adminNotes?: string;
     priority?: string;
-    assignedTo?: string;
+    assignedTo?: string | null;
     resolvedAt?: string;
+    rejectionReason?: string;
   }
 ): Promise<GrievanceRecord> {
   const res = await fetch(`${API}/grievances/${encodeURIComponent(grievanceId)}`, {
@@ -84,4 +86,11 @@ export async function apiUpdateGrievance(
   });
   if (!res.ok) throw new Error("Failed to update grievance");
   return res.json();
+}
+
+export async function apiDeleteGrievance(grievanceId: string): Promise<void> {
+  const res = await fetch(`${API}/grievances/${encodeURIComponent(grievanceId)}`, {
+    method: "DELETE",
+  });
+  if (!res.ok) throw new Error("Failed to delete grievance");
 }

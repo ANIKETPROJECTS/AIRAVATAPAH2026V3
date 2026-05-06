@@ -98,6 +98,7 @@ router.post("/grievances", async (req, res): Promise<void> => {
       assignedTo: assignedTo ?? null,
       adminReply: null,
       adminNotes: null,
+      rejectionReason: null,
       resolvedAt: null,
       source: source ?? "farmer",
       raisedBy: raisedBy ?? null,
@@ -117,12 +118,13 @@ router.post("/grievances", async (req, res): Promise<void> => {
 router.patch("/grievances/:id", async (req, res): Promise<void> => {
   try {
     const db = getDb();
-    const { status, adminReply, adminNotes, priority, assignedTo, resolvedAt } = req.body as {
+    const { status, adminReply, adminNotes, priority, assignedTo, resolvedAt, rejectionReason } = req.body as {
       status?: string; adminReply?: string; adminNotes?: string;
       priority?: string; assignedTo?: string; resolvedAt?: string;
+      rejectionReason?: string;
     };
 
-    const validStatuses = ["Open", "In Progress", "Resolved", "Closed", "Escalated"];
+    const validStatuses = ["Open", "In Progress", "Resolved", "Closed", "Escalated", "Rejected"];
     if (status && !validStatuses.includes(status)) {
       res.status(400).json({ error: `status must be one of: ${validStatuses.join(", ")}` });
       return;
@@ -135,6 +137,7 @@ router.patch("/grievances/:id", async (req, res): Promise<void> => {
     if (priority) updates["priority"] = priority;
     if (assignedTo !== undefined) updates["assignedTo"] = assignedTo;
     if (resolvedAt !== undefined) updates["resolvedAt"] = resolvedAt;
+    if (rejectionReason !== undefined) updates["rejectionReason"] = rejectionReason;
 
     const result = await db.collection("grievances").findOneAndUpdate(
       { grievanceId: req.params["id"] },
@@ -146,6 +149,18 @@ router.patch("/grievances/:id", async (req, res): Promise<void> => {
   } catch (err) {
     logger.error({ err }, "Failed to update grievance");
     res.status(500).json({ error: "Failed to update grievance" });
+  }
+});
+
+router.delete("/grievances/:id", async (req, res): Promise<void> => {
+  try {
+    const db = getDb();
+    const result = await db.collection("grievances").deleteOne({ grievanceId: req.params["id"] });
+    if (result.deletedCount === 0) { res.status(404).json({ error: "Grievance not found" }); return; }
+    res.json({ success: true });
+  } catch (err) {
+    logger.error({ err }, "Failed to delete grievance");
+    res.status(500).json({ error: "Failed to delete grievance" });
   }
 });
 

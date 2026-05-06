@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { X, Search, Paperclip, Lock } from "lucide-react";
+import { Search, Paperclip, Lock, ArrowLeft, X } from "lucide-react";
 import { apiCreateGrievance } from "@/data/grievanceApi";
 import { apiFetchFarmers, type FarmerRecord } from "@/data/farmerApi";
 
@@ -19,12 +19,12 @@ const SUBJECT_MAP: Record<string, string> = {
 };
 
 interface Props {
-  onClose: () => void;
+  onBack: () => void;
   onSuccess: (msg: string) => void;
   adminName: string;
 }
 
-export default function GrievanceFilingForm({ onClose, onSuccess, adminName }: Props) {
+export default function GrievanceFilingForm({ onBack, onSuccess, adminName }: Props) {
   const [allFarmers, setAllFarmers] = useState<FarmerRecord[]>([]);
   const [farmerSearch, setFarmerSearch] = useState("");
   const [selectedFarmer, setSelectedFarmer] = useState<FarmerRecord | null>(null);
@@ -104,7 +104,6 @@ export default function GrievanceFilingForm({ onClose, onSuccess, adminName }: P
         raisedBy: adminName,
       });
       onSuccess(`✅ Grievance ${gr.grievanceId} filed successfully`);
-      onClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to submit grievance");
       setSubmitting(false);
@@ -115,11 +114,17 @@ export default function GrievanceFilingForm({ onClose, onSuccess, adminName }: P
   const labelCls = "block text-sm font-medium mb-1.5";
 
   return (
-    <div className="fixed inset-0 bg-foreground/30 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-card border border-border rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-        <div className="flex justify-between items-center px-6 py-4 border-b border-border sticky top-0 bg-card z-10">
+    <div className="space-y-5 animate-fade-in">
+      {/* Header with back button */}
+      <div className="flex items-center gap-3">
+        <button onClick={onBack} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
+          <ArrowLeft className="h-4 w-4" /> Back to Grievances
+        </button>
+      </div>
+
+      <div className="bg-card border border-border rounded-xl max-w-2xl">
+        <div className="flex justify-between items-center px-6 py-4 border-b border-border">
           <h2 className="font-heading text-xl">📢 File Grievance</h2>
-          <button onClick={onClose}><X className="h-5 w-5 text-muted-foreground hover:text-foreground" /></button>
         </div>
 
         <div className="p-6 space-y-5">
@@ -261,7 +266,7 @@ export default function GrievanceFilingForm({ onClose, onSuccess, adminName }: P
               className="flex-1 text-sm px-4 py-2.5 bg-secondary text-secondary-foreground rounded-lg hover:opacity-90 disabled:opacity-50 font-medium">
               {submitting ? "Filing…" : "📢 File Grievance"}
             </button>
-            <button onClick={onClose} className="text-sm px-4 py-2.5 border border-border rounded-lg hover:bg-muted">
+            <button onClick={onBack} className="text-sm px-4 py-2.5 border border-border rounded-lg hover:bg-muted">
               Cancel
             </button>
           </div>
