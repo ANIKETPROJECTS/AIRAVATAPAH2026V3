@@ -570,42 +570,81 @@ export interface ExtractionState {
   rawFileDataUrl?: string | null;
 }
 
-/** Full-screen document lightbox — click image to zoom, click outside or press Esc to close */
+const ZOOM_MIN = 0.5;
+const ZOOM_MAX = 5;
+const ZOOM_STEP = 0.12;
+
+/** Full-screen document lightbox — scroll to zoom, drag to pan, Esc to close */
 export function DocLightbox({ src, label, onClose }: { src: string; label?: string; onClose: () => void }) {
-  const [zoomed, setZoomed] = useState(false);
+  const [scale, setScale] = useState(1);
+  const [translate, setTranslate] = useState({ x: 0, y: 0 });
+  const dragging = useRef(false);
+  const dragStart = useRef({ x: 0, y: 0, tx: 0, ty: 0 });
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") { if (zoomed) setZoomed(false); else onClose(); }
-    };
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [onClose, zoomed]);
+  }, [onClose]);
+
+  const resetZoom = () => { setScale(1); setTranslate({ x: 0, y: 0 }); };
+
+  const handleWheel = (e: React.WheelEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const delta = e.deltaY < 0 ? ZOOM_STEP : -ZOOM_STEP;
+    setScale(s => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, s + delta)));
+  };
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (scale <= 1) return;
+    e.preventDefault();
+    dragging.current = true;
+    dragStart.current = { x: e.clientX, y: e.clientY, tx: translate.x, ty: translate.y };
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!dragging.current) return;
+    setTranslate({
+      x: dragStart.current.tx + (e.clientX - dragStart.current.x),
+      y: dragStart.current.ty + (e.clientY - dragStart.current.y),
+    });
+  };
+
+  const handleMouseUp = () => { dragging.current = false; };
+
+  const pct = Math.round(scale * 100);
 
   return createPortal(
-    <div
-      className="fixed inset-0 z-[300] flex flex-col bg-black/96"
-      onClick={() => { if (zoomed) setZoomed(false); else onClose(); }}
-    >
+    <div className="fixed inset-0 z-[300] flex flex-col bg-black/96">
       {/* Header */}
-      <div
-        className="flex items-center justify-between px-6 py-3 border-b border-white/10 bg-black/70 flex-shrink-0"
-        onClick={e => e.stopPropagation()}
-      >
+      <div className="flex items-center justify-between px-6 py-3 border-b border-white/10 bg-black/70 flex-shrink-0">
         <div className="flex items-center gap-2">
           <Image className="h-4 w-4 text-white/50 flex-shrink-0" />
           {label && <span className="text-sm font-semibold text-white/80">{label}</span>}
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-xs text-white/40 hidden sm:block">
-            {zoomed ? "Click image to zoom out · Esc to exit" : "Click image to zoom · Esc to close"}
-          </span>
+          <span className="text-xs text-white/40 hidden sm:block">Scroll to zoom · drag to pan · Esc to close</span>
+          <span className="text-xs font-mono text-white/50 tabular-nums w-12 text-center">{pct}%</span>
           <button
-            onClick={() => setZoomed(z => !z)}
-            className="flex items-center gap-2 text-white/70 hover:text-white text-sm font-semibold transition-colors px-4 py-2 rounded-lg hover:bg-white/10 border border-white/20"
+            onClick={() => setScale(s => Math.min(ZOOM_MAX, s + ZOOM_STEP * 3))}
+            className="flex items-center gap-1.5 text-white/70 hover:text-white text-sm font-semibold transition-colors px-3 py-2 rounded-lg hover:bg-white/10 border border-white/20"
           >
             <ZoomIn className="h-4 w-4" />
-            {zoomed ? "Zoom out" : "Zoom in"}
+          </button>
+          <button
+            onClick={() => { if (scale > 1) { setScale(s => Math.max(ZOOM_MIN, s - ZOOM_STEP * 3)); } else resetZoom(); }}
+            className="flex items-center gap-1.5 text-white/70 hover:text-white text-sm font-semibold transition-colors px-3 py-2 rounded-lg hover:bg-white/10 border border-white/20"
+            title="Zoom out"
+          >
+            <ZoomIn className="h-4 w-4 rotate-180" />
+          </button>
+          <button
+            onClick={resetZoom}
+            className="text-xs text-white/60 hover:text-white font-semibold transition-colors px-3 py-2 rounded-lg hover:bg-white/10 border border-white/20"
+          >
+            Reset
           </button>
           <button
             onClick={onClose}
@@ -619,21 +658,27 @@ export function DocLightbox({ src, label, onClose }: { src: string; label?: stri
 
       {/* Image area */}
       <div
-        className={`flex-1 overflow-auto ${zoomed ? "flex items-start justify-start" : "flex items-center justify-center"} p-6`}
-        onClick={e => e.stopPropagation()}
+        ref={containerRef}
+        className="flex-1 overflow-hidden flex items-center justify-center"
+        onWheel={handleWheel}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+        onClick={e => { if (!dragging.current && scale === 1) onClose(); }}
+        style={{ cursor: scale > 1 ? (dragging.current ? "grabbing" : "grab") : "default" }}
       >
         <img
           src={src}
           alt={label ?? "Document"}
-          onClick={() => setZoomed(z => !z)}
-          className={`rounded-xl shadow-2xl select-none transition-all duration-200 ${
-            zoomed
-              ? "w-auto max-w-none h-auto"
-              : "max-w-full max-h-full object-contain"
-          }`}
+          draggable={false}
+          className="rounded-xl shadow-2xl select-none"
           style={{
-            cursor: zoomed ? "zoom-out" : "zoom-in",
-            minWidth: zoomed ? "200%" : undefined,
+            maxWidth: "none",
+            maxHeight: "none",
+            transform: `scale(${scale}) translate(${translate.x / scale}px, ${translate.y / scale}px)`,
+            transformOrigin: "center center",
+            transition: dragging.current ? "none" : "transform 0.05s ease-out",
           }}
         />
       </div>
