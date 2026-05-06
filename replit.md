@@ -28,7 +28,8 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 - **Port**: 5000 (webview workflow "Start application")
 - **Description**: Maharashtra district officer portal — manage farmer registrations, scheme applications, OCR extraction, subsidies, grievances
 - **Tech**: React 19, react-router-dom, Tailwind v3, shadcn/ui, Recharts, DM Sans/DM Serif Display fonts
-- **Key screens**: Dashboard, New Registration (OCR wizard), Farmer Registry, Scheme Applications, Subsidy Management, Insurance Claims, Grievance Management, Reports & Analytics, Farmer App Preview
+- **Key screens**: Dashboard, New Registration (OCR wizard), Farmer Registry, Scheme Applications, Subsidy Applications (was "Subsidy Management"), Insurance Claim Applications (was "Insurance Claims"), Grievance Management, Reports & Analytics, Farmer App Preview
+- **Sidebar groups**: "Applications" hover-flyout → Scheme Applications / Subsidy Applications / Insurance Claim Applications; "Database" hover-flyout → All Schemes / All Insurance / All Subsidies
 - **New Registration module**: 5 document upload cards (Form 7, Form 12, Form 8A, Aadhaar, Bank Passbook); uploads to `/api/extract`, polls `/api/extract/:requestId`, displays structured extracted fields, auto-saves to MongoDB when phone provided
 - **Language switching**: Marathi/Hindi/English on New Registration page. Translation maps: `SECTION_TITLE_MAP`, `PROFILE_FIELD_LABEL_MAP`, `PROFILE_SECTION_DOC_LABELS`, `FIELD_LABEL_MAP`, `UI_T`. Helpers: `ui()`, `tSec()`, `tField()`, `tProfileField()`
 
